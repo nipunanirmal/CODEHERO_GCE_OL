@@ -52,6 +52,23 @@ A comprehensive interactive learning tool designed for Sri Lankan G.C.E. O/L ICT
 
 4. Open your browser at `http://localhost:5173`.
 
+> [!NOTE]
+> **Why `npm install`?**  
+> Large dependency files (`node_modules`) are excluded from GitHub to keep the repository light. Running `npm install` downloads all necessary libraries listed in `package.json` to your local machine.
+
+### Building for Production
+To create an optimized build for deployment (e.g., for Coolify, Vercel, or Netlify):
+
+1. Run the build command:
+   ```bash
+   npm run build
+   ```
+2. The output will be generated in the `dist` folder.
+3. You can preview the production build locally:
+   ```bash
+   npm run preview
+   ```
+
 ## 🛠️ Tech Stack
 - **Framework**: React + Vite
 - **Styling**: TailwindCSS
