@@ -36,8 +36,8 @@ A comprehensive interactive learning tool designed for Sri Lankan G.C.E. O/L ICT
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/ol-ict-game.git
-   cd ol-ict-game
+   git clone https://github.com/nipunanirmal/CODEHERO_GCE_OL.git
+   cd CODEHERO_GCE_OL
    ```
 
 2. Install dependencies:
