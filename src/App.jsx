@@ -68,6 +68,17 @@ const ModuleCard = ({ to, title, desc, color, icon }) => (
 
 
 
+// Helper to load Set from localStorage
+const loadSet = (key) => {
+  try {
+    const stored = localStorage.getItem(key);
+    return new Set(stored ? JSON.parse(stored) : []);
+  } catch (e) {
+    console.error("Failed to load completed levels", e);
+    return new Set();
+  }
+};
+
 function AppContent() {
   const [xp, setXp] = useState(() => {
     try { return parseInt(sessionStorage.getItem('user_xp') || '0', 10); } catch { return 0; }
@@ -77,15 +88,28 @@ function AppContent() {
   // --- GAME STATE LIFTED UP ---
   // Flowcharts
   const [levelIndex, setLevelIndex] = useState(0);
-  const [completedLevels, setCompletedLevels] = useState(new Set());
+  const [completedLevels, setCompletedLevels] = useState(() => loadSet('completed_flowcharts'));
 
   // Pseudo Code
   const [pseudoLevelIndex, setPseudoLevelIndex] = useState(0);
-  const [completedPseudoLevels, setCompletedPseudoLevels] = useState(new Set());
+  const [completedPseudoLevels, setCompletedPseudoLevels] = useState(() => loadSet('completed_pseudocode'));
 
   // Pascal
   const [pascalLevelIndex, setPascalLevelIndex] = useState(0);
-  const [completedPascalLevels, setCompletedPascalLevels] = useState(new Set());
+  const [completedPascalLevels, setCompletedPascalLevels] = useState(() => loadSet('completed_pascal'));
+
+  // --- PERSISTENCE EFFECT ---
+  React.useEffect(() => {
+    localStorage.setItem('completed_flowcharts', JSON.stringify([...completedLevels]));
+  }, [completedLevels]);
+
+  React.useEffect(() => {
+    localStorage.setItem('completed_pseudocode', JSON.stringify([...completedPseudoLevels]));
+  }, [completedPseudoLevels]);
+
+  React.useEffect(() => {
+    localStorage.setItem('completed_pascal', JSON.stringify([...completedPascalLevels]));
+  }, [completedPascalLevels]);
 
   // --- NAVIGATION STATE ---
   const navigate = useNavigate();

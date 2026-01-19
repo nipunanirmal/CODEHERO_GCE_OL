@@ -15,6 +15,7 @@ import Sidebar from './Sidebar';
 import { Play, Pause, RotateCcw, ChevronRight, Trophy, CheckCircle2, Terminal, SkipBack, SkipForward, Gauge } from 'lucide-react';
 import { TerminatorNode, ProcessNode, DecisionNode, IONode } from './CustomNodes';
 import { levels } from '../data/levels';
+import { motion } from 'framer-motion';
 
 let id = 0;
 const getId = () => `node_${id++}`;
@@ -142,7 +143,7 @@ const FlowchartGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, 
                         style: {
                             ...node.style,
                             boxShadow: '0 0 0 4px #10b981', // Emerald glow
-                            transform: 'scale(1.05)',
+                            // transform: 'scale(1.05)' - REMOVED per user request
                             transition: 'all 0.3s ease'
                         },
                     };
@@ -585,7 +586,13 @@ const FlowchartGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, 
                     </div>
 
                     {/* ADVANCED LIVE CONSOLE */}
-                    <div className={`absolute bottom-4 right-4 w-80 bg-slate-900 rounded-xl overflow-hidden shadow-2xl transition-all duration-300 ${trace ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}>
+                    <motion.div
+                        drag
+                        dragMomentum={false}
+                        whileDrag={{ scale: 1.02, cursor: 'grabbing' }}
+                        className={`absolute bottom-4 right-4 w-80 bg-slate-900 rounded-xl overflow-hidden shadow-2xl transition-opacity duration-300 ${trace ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                        style={{ y: trace ? 0 : 40 }} // Use motion style for entrance/exit if possible, or mix with tailwind
+                    >
                         {/* Tabs/Header */}
                         <div className="bg-slate-800 flex border-b border-slate-700">
                             <div className="px-4 py-2 flex items-center gap-2 border-r border-slate-700 bg-slate-800/50">
@@ -630,7 +637,7 @@ const FlowchartGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, 
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
 
                 {/* RIGHT SIDEBAR (TOOLKIT ONLY) */}
@@ -640,7 +647,7 @@ const FlowchartGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, 
                     missionDescription={currentLevel?.description}
                 />
             </div>
-        </ReactFlowProvider>
+        </ReactFlowProvider >
     );
 };
 

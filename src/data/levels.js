@@ -5,10 +5,9 @@ export const levels = [
         title: 'රසවත් තේ කෝප්පය',
         category: 'Sequence',
         description: 'තේ කෝප්පයක් සෑදීමේ නිවැරදි පියවර පෙළගස්වන්න.',
-        initialNodes: [
-            { id: 'start', type: 'terminator', data: { label: 'ආරම්භය' }, position: { x: 250, y: 20 } },
-        ],
+        initialNodes: [],
         availableBlocks: [
+            { type: 'terminator', label: 'ආරම්භය', execute: (ctx) => { } },
             { type: 'process', label: 'වතුර රත් කිරීම', execute: (ctx) => { ctx.logs.push('වතුර රත් විය'); } },
             { type: 'process', label: 'තේ පවුඩර් දැමීම', execute: (ctx) => { ctx.logs.push('තේ පවුඩර් දැමුවා'); } },
             { type: 'io', label: 'සීනි සහ කිරි ගන්න', execute: (ctx) => { ctx.logs.push('සීනි සහ කිරි ගත්තා'); } },
@@ -30,10 +29,9 @@ export const levels = [
         title: 'පාසල් යාම',
         category: 'Sequence',
         description: 'උදෑසන අවදි වී පාසල් යාමට සූදානම් වීම.',
-        initialNodes: [
-            { id: 'start', type: 'terminator', data: { label: 'ආරම්භය' }, position: { x: 250, y: 20 } },
-        ],
+        initialNodes: [],
         availableBlocks: [
+            { type: 'terminator', label: 'ආරම්භය', execute: (ctx) => { } },
             { type: 'process', label: 'මුහුණ සේදීම', execute: (ctx) => { ctx.logs.push('මුහුණ සේදුවා'); } },
             { type: 'process', label: 'ඇඳුම් ඇඳීම', execute: (ctx) => { ctx.logs.push('ඇඳුම් ඇඳගත්තා'); } },
             { type: 'process', label: 'ආහාර ගැනීම', execute: (ctx) => { ctx.logs.push('ආහාර ගත්තා'); } },
@@ -52,10 +50,9 @@ export const levels = [
         title: 'සමත් / අසමත්',
         category: 'Selection',
         description: 'ලකුණු 50 ට වැඩි නම් "සමත්" ලෙසත්, නැතිනම් "අසමත්" ලෙසත් දත්ත ප්‍රතිදානය කරන්න.',
-        initialNodes: [
-            { id: 'start', type: 'terminator', data: { label: 'ආරම්භය' }, position: { x: 250, y: 20 } },
-        ],
+        initialNodes: [],
         availableBlocks: [
+            { type: 'terminator', label: 'ආරම්භය', execute: (ctx) => { } },
             { type: 'io', label: 'ලකුණු ඇතුළත් කිරීම', execute: (ctx) => { ctx.marks = 75; ctx.logs.push('ලකුණු: 75'); } },
             { type: 'decision', label: 'ලකුණු > 50?', execute: (ctx) => { return ctx.marks > 50; } },
             { type: 'io', label: 'සමත්', execute: (ctx) => { ctx.logs.push('සමත්'); } },
@@ -80,10 +77,9 @@ export const levels = [
         title: 'වැසි දිනය',
         category: 'Selection',
         description: 'වැස්ස තිබේ නම් කුඩයක් ගෙන යන්න.',
-        initialNodes: [
-            { id: 'start', type: 'terminator', data: { label: 'ආරම්භය' }, position: { x: 250, y: 20 } },
-        ],
+        initialNodes: [],
         availableBlocks: [
+            { type: 'terminator', label: 'ආරම්භය', execute: (ctx) => { } },
             { type: 'decision', label: 'වැස්සද?', execute: (ctx) => { ctx.rain = true; return ctx.rain; } },
             { type: 'process', label: 'කුඩය ගන්න', execute: (ctx) => { ctx.logs.push('කුඩය ගත්තා'); } },
             { type: 'terminator', label: 'අවසානය', execute: (ctx) => { ctx.finished = true; } }
@@ -106,10 +102,9 @@ export const levels = [
         title: '1 සිට 5 ට ගැනිම',
         category: 'Iteration',
         description: '1 සිට 5 දක්වා සංඛ්‍යා ප්‍රතිදානය කරන්න.',
-        initialNodes: [
-            { id: 'start', type: 'terminator', data: { label: 'ආරම්භය' }, position: { x: 250, y: 20 } },
-        ],
+        initialNodes: [],
         availableBlocks: [
+            { type: 'terminator', label: 'ආරම්භය', execute: (ctx) => { } },
             { type: 'process', label: 'x = 1', execute: (ctx) => { ctx.x = 1; } },
             { type: 'decision', label: 'x <= 5?', execute: (ctx) => { return ctx.x <= 5; } },
             { type: 'io', label: 'Print x', execute: (ctx) => { ctx.logs.push(ctx.x); } },
@@ -135,8 +130,9 @@ export const levels = [
         title: 'පැලයක් සිටුවීම',
         category: 'Sequence',
         description: 'පැලයක් සිටුවීමේ පියවර නිවැරදිව පෙළගස්වන්න.',
-        initialNodes: [{ id: 'start', type: 'terminator', data: { label: 'ආරම්භය' }, position: { x: 250, y: 20 } }],
+        initialNodes: [],
         availableBlocks: [
+            { type: 'terminator', label: 'ආරම්භය', execute: (ctx) => { } },
             { type: 'process', label: 'වලක් හෑරීම', execute: (ctx) => { ctx.logs.push('වලක් හෑරුවා'); } },
             { type: 'process', label: 'පැලය සිටුවීම', execute: (ctx) => { ctx.logs.push('පැලය සිටුවුවා'); } },
             { type: 'process', label: 'වතුර දැමීම', execute: (ctx) => { ctx.logs.push('වතුර දැමුවා'); } },
@@ -153,8 +149,9 @@ export const levels = [
         title: 'ඔන්ලයින් භාණ්ඩ මිලදී ගැනීම',
         category: 'Sequence',
         description: 'අන්තර්ජාලයෙන් භාණ්ඩයක් ඇණවුම් කරන පියවර.',
-        initialNodes: [{ id: 'start', type: 'terminator', data: { label: 'ආරම්භය' }, position: { x: 250, y: 20 } }],
+        initialNodes: [],
         availableBlocks: [
+            { type: 'terminator', label: 'ආරම්භය', execute: (ctx) => { } },
             { type: 'io', label: 'භාණ්ඩය තෝරාගැනීම', execute: (ctx) => { ctx.logs.push('භාණ්ඩය තෝරා ගත්තා'); } },
             { type: 'process', label: 'එකතු කිරීම (Cart)', execute: (ctx) => { ctx.logs.push('Cart එකට දැමුවා'); } },
             { type: 'process', label: 'මුදල් ගෙවීම', execute: (ctx) => { ctx.logs.push('මුදල් ගෙවුවා'); } },
@@ -171,8 +168,9 @@ export const levels = [
         title: 'දත් මැදීම',
         category: 'Sequence',
         description: 'දිනපතා දත් මැදීමේ පියවර.',
-        initialNodes: [{ id: 'start', type: 'terminator', data: { label: 'ආරම්භය' }, position: { x: 250, y: 20 } }],
+        initialNodes: [],
         availableBlocks: [
+            { type: 'terminator', label: 'ආරම්භය', execute: (ctx) => { } },
             { type: 'process', label: 'බුරුසුවට ආලේපන දැමීම', execute: (ctx) => { ctx.logs.push('ආලේපන දැමුවා'); } },
             { type: 'process', label: 'දත් මැදීම', execute: (ctx) => { ctx.logs.push('දත් මැද්දා'); } },
             { type: 'process', label: 'කට සේදීම', execute: (ctx) => { ctx.logs.push('කට හේදුවා'); } },
@@ -189,8 +187,9 @@ export const levels = [
         title: 'ඡන්දය දීම',
         category: 'Selection',
         description: 'වයස අවුරුදු 18 ට වැඩි නම් පමණක් ඡන්දය දිය හැක.',
-        initialNodes: [{ id: 'start', type: 'terminator', data: { label: 'ආරම්භය' }, position: { x: 250, y: 20 } }],
+        initialNodes: [],
         availableBlocks: [
+            { type: 'terminator', label: 'ආරම්භය', execute: (ctx) => { } },
             { type: 'io', label: 'වයස ලබාගැනීම', execute: (ctx) => { ctx.age = 20; ctx.logs.push('වයස: 20'); } },
             { type: 'decision', label: 'වයස >= 18?', execute: (ctx) => { return ctx.age >= 18; } },
             { type: 'io', label: 'ඡන්දය දීම', execute: (ctx) => { ctx.logs.push('ඡන්දය දුන්නා'); } },
@@ -215,8 +214,9 @@ export const levels = [
         title: 'මාර්ග සංඥා',
         category: 'Selection',
         description: 'රතු එළිය දැල්වී ඇත්නම් නවතින්න.',
-        initialNodes: [{ id: 'start', type: 'terminator', data: { label: 'ආරම්භය' }, position: { x: 250, y: 20 } }],
+        initialNodes: [],
         availableBlocks: [
+            { type: 'terminator', label: 'ආරම්භය', execute: (ctx) => { } },
             { type: 'io', label: 'වර්ණය බැලීම', execute: (ctx) => { ctx.color = 'Red'; ctx.logs.push('වර්ණය: රතු'); } },
             { type: 'decision', label: 'රතු පාටද?', execute: (ctx) => { return ctx.color === 'Red'; } },
             { type: 'process', label: 'නවතින්න', execute: (ctx) => { ctx.logs.push('නැවතුනා'); } },
@@ -241,8 +241,9 @@ export const levels = [
         title: 'Log In පද්ධතිය',
         category: 'Selection',
         description: 'Password එක නිවැරදි නම් Login වන්න.',
-        initialNodes: [{ id: 'start', type: 'terminator', data: { label: 'ආරම්භය' }, position: { x: 250, y: 20 } }],
+        initialNodes: [],
         availableBlocks: [
+            { type: 'terminator', label: 'ආරම්භය', execute: (ctx) => { } },
             { type: 'io', label: 'Password ලබාගැනීම', execute: (ctx) => { ctx.password = 'correct'; ctx.logs.push('Password ඇතුළත් කළා'); } },
             { type: 'decision', label: 'නිවැරදිද?', execute: (ctx) => { return ctx.password === 'correct'; } },
             { type: 'io', label: 'සාර්ථකයි', execute: (ctx) => { ctx.logs.push('Login සාර්ථකයි'); } },
@@ -267,8 +268,9 @@ export const levels = [
         title: 'Countdown (10 to 1)',
         category: 'Iteration',
         description: '10 සිට 1 දක්වා කාලය ගණනය කිරීම.',
-        initialNodes: [{ id: 'start', type: 'terminator', data: { label: 'ආරම්භය' }, position: { x: 250, y: 20 } }],
+        initialNodes: [],
         availableBlocks: [
+            { type: 'terminator', label: 'ආරම්භය', execute: (ctx) => { } },
             { type: 'process', label: 'time = 10', execute: (ctx) => { ctx.time = 10; } },
             { type: 'decision', label: 'time > 0?', execute: (ctx) => { return ctx.time > 0; } },
             { type: 'io', label: 'Print time', execute: (ctx) => { ctx.logs.push(ctx.time); } },
@@ -293,16 +295,9 @@ export const levels = [
         title: 'එකතු කිරීම (Sum)',
         category: 'Iteration',
         description: '1 සිට 5 දක්වා සංඛ්‍යා වල එකතුව.',
-        initialNodes: [{
-            id: 'start',
-            type: 'terminator',
-            data: {
-                label: 'ආරම්භය',
-                execute: (ctx) => { /* No-op for start */ }
-            },
-            position: { x: 250, y: 20 }
-        }],
+        initialNodes: [],
         availableBlocks: [
+            { type: 'terminator', label: 'ආරම්භය', execute: (ctx) => { /* No-op for start */ } },
             {
                 type: 'process',
                 label: 'sum = 0, x = 1',
@@ -345,8 +340,9 @@ export const levels = [
         title: 'බාල්දිය පිරවීම',
         category: 'Iteration',
         description: 'බාල්දිය පිරෙන තුරු වතුර එකතු කරන්න (Max 10).',
-        initialNodes: [{ id: 'start', type: 'terminator', data: { label: 'ආරම්භය' }, position: { x: 250, y: 20 } }],
+        initialNodes: [],
         availableBlocks: [
+            { type: 'terminator', label: 'ආරම්භය', execute: (ctx) => { } },
             { type: 'process', label: 'water = 0', execute: (ctx) => { ctx.water = 0; } },
             { type: 'decision', label: 'water < 10?', execute: (ctx) => { return ctx.water < 10; } },
             { type: 'process', label: 'Add Water', execute: (ctx) => { ctx.logs.push('Added water'); } },

@@ -55,13 +55,12 @@ export const pascalLevels = [
         instruction: 'age නමින් integer විචල්‍යයක් සාදන අයුරු.',
         availableBlocks: [
             { id: 'v1', text: 'program VarDemo;' },
-            { id: 'v2', text: 'var' },
-            { id: 'v3', text: '  age: integer;' },
+            { id: 'v2', text: 'var age: integer;' },
             { id: 'v4', text: 'begin' },
             { id: 'v5', text: '  age := 16;' },
             { id: 'v6', text: 'end.' }
         ],
-        correctOrder: ['program VarDemo;', 'var', '  age: integer;', 'begin', '  age := 16;', 'end.'],
+        correctOrder: ['program VarDemo;', 'var age: integer;', 'begin', '  age := 16;', 'end.'],
         explanation: '"var" යටතේ විචල්‍ය නම සහ වර්ගය (type) දැක්විය යුතුය. (name: type;)'
     },
     {
@@ -71,6 +70,7 @@ export const pascalLevels = [
         description: 'නම ඇතුලත් කර එය ආයුබෝවන් සමග පෙන්වීම.',
         instruction: 'නම ලබාගෙන (Input) පෙන්වන (Output) කේතය සකසන්න.',
         availableBlocks: [
+            { id: 'io_p', text: 'program HelloUser;' },
             { id: 'io1', text: 'var name: string;' },
             { id: 'io2', text: 'begin' },
             { id: 'io3', text: '  write(\'Enter Name: \');' },
@@ -78,7 +78,7 @@ export const pascalLevels = [
             { id: 'io5', text: '  writeln(\'Hello \', name);' },
             { id: 'io6', text: 'end.' }
         ],
-        correctOrder: ['var name: string;', 'begin', '  write(\'Enter Name: \');', '  readln(name);', '  writeln(\'Hello \', name);', 'end.'],
+        correctOrder: ['program HelloUser;', 'var name: string;', 'begin', '  write(\'Enter Name: \');', '  readln(name);', '  writeln(\'Hello \', name);', 'end.'],
         output: 'Enter Name: Kamal\nHello Kamal',
         explanation: 'write මගින් කර්සරය එම පේළියේම තබයි. readln මගින් දත්ත ලබාගනී.'
     },
@@ -91,6 +91,7 @@ export const pascalLevels = [
         description: 'සංඛ්‍යා දෙකක එකතුව සෙවීම.',
         instruction: 'a සහ b එකතු කර sum ට දමන්න.',
         availableBlocks: [
+            { id: 'c_p', text: 'program AddNums;' },
             { id: 'c1', text: 'var a, b, sum: integer;' },
             { id: 'c2', text: 'begin' },
             { id: 'c3', text: '  a := 10; b := 20;' },
@@ -98,7 +99,7 @@ export const pascalLevels = [
             { id: 'c5', text: '  writeln(sum);' },
             { id: 'c6', text: 'end.' }
         ],
-        correctOrder: ['var a, b, sum: integer;', 'begin', '  a := 10; b := 20;', '  sum := a + b;', '  writeln(sum);', 'end.'],
+        correctOrder: ['program AddNums;', 'var a, b, sum: integer;', 'begin', '  a := 10; b := 20;', '  sum := a + b;', '  writeln(sum);', 'end.'],
         output: '30',
         explanation: 'Pascal වල අගයක් ආදේශ කිරීමට ":=" භාවිතා කරයි.'
     },
@@ -109,6 +110,7 @@ export const pascalLevels = [
         description: 'විෂයන් 3ක සාමාන්‍යය සෙවීම.',
         instruction: 'avg විචල්‍යය real විය යුතුය.',
         availableBlocks: [
+            { id: 'a_p', text: 'program CalcAvg;' },
             { id: 'a1', text: 'var total: integer; avg: real;' },
             { id: 'a2', text: 'begin' },
             { id: 'a3', text: '  total := 250;' },
@@ -116,7 +118,7 @@ export const pascalLevels = [
             { id: 'a5', text: '  writeln(avg:0:2);' },
             { id: 'a6', text: 'end.' }
         ],
-        correctOrder: ['var total: integer; avg: real;', 'begin', '  total := 250;', '  avg := total / 3;', '  writeln(avg:0:2);', 'end.'],
+        correctOrder: ['program CalcAvg;', 'var total: integer; avg: real;', 'begin', '  total := 250;', '  avg := total / 3;', '  writeln(avg:0:2);', 'end.'],
         output: '83.33',
         explanation: 'Real සංඛ්‍යා පෙන්වද්දී දශම ස්ථාන ගණන පාලනය කිරීමට ":0:2" වැනි ආකෘතියක් යොදා ගනී.'
     },
@@ -127,6 +129,7 @@ export const pascalLevels = [
         description: 'Area = pi * r * r සූත්‍රය භාවිතය.',
         instruction: 'r=7 විට වර්ගඵලය සොයන්න (pi=3.14).',
         availableBlocks: [
+            { id: 'ar_p', text: 'program CircleArea;' },
             { id: 'ar1', text: 'const pi = 3.14;' },
             { id: 'ar2', text: 'var r, area: real;' },
             { id: 'ar3', text: 'begin' },
@@ -134,7 +137,7 @@ export const pascalLevels = [
             { id: 'ar5', text: '  area := pi * r * r;' },
             { id: 'ar6', text: 'end.' }
         ],
-        correctOrder: ['const pi = 3.14;', 'var r, area: real;', 'begin', '  r := 7;', '  area := pi * r * r;', 'end.'],
+        correctOrder: ['program CircleArea;', 'const pi = 3.14;', 'var r, area: real;', 'begin', '  r := 7;', '  area := pi * r * r;', 'end.'],
         explanation: 'නියත අගයන් (Constants) "const" යටතේ අර්ථ දැක්විය හැක. ඒවා වැඩසටහන අතරතුර වෙනස් කළ නොහැක.'
     },
     {
@@ -144,14 +147,16 @@ export const pascalLevels = [
         description: 'Variables දෙකක අගයන් හුවමාරු කිරීම.',
         instruction: 'temp විචල්‍යයක් භාවිතා කරන්න.',
         availableBlocks: [
+            { id: 'sw_p', text: 'program SwapVars;' },
             { id: 'sw1', text: 'var x, y, temp: integer;' },
-            { id: 'sw2', text: 'begin x:=5; y:=10;' },
+            { id: 'sw2', text: 'begin' },
+            { id: 'sw_x', text: '  x:=5; y:=10;' },
             { id: 'sw3', text: '  temp := x;' },
             { id: 'sw4', text: '  x := y;' },
             { id: 'sw5', text: '  y := temp;' },
             { id: 'sw6', text: 'end.' }
         ],
-        correctOrder: ['var x, y, temp: integer;', 'begin x:=5; y:=10;', '  temp := x;', '  x := y;', '  y := temp;', 'end.'],
+        correctOrder: ['program SwapVars;', 'var x, y, temp: integer;', 'begin', '  x:=5; y:=10;', '  temp := x;', '  x := y;', '  y := temp;', 'end.'],
         explanation: 'Temp එකට x දමා, x ට y දමා, y ට Temp දැමීමෙන් අගයන් මාරු වේ.'
     },
     {
@@ -161,6 +166,7 @@ export const pascalLevels = [
         description: 'භාණ්ඩයක මිල සහ ප්‍රමාණය අනුව මුළු මුදල.',
         instruction: 'price * qty',
         availableBlocks: [
+            { id: 'p_p', text: 'program CalcTotal;' },
             { id: 'p1', text: 'var price, total: real;' },
             { id: 'p2', text: '    qty: integer;' },
             { id: 'p3', text: 'begin' },
@@ -168,7 +174,7 @@ export const pascalLevels = [
             { id: 'p5', text: '  total := price * qty;' },
             { id: 'p6', text: 'end.' }
         ],
-        correctOrder: ['var price, total: real;', '    qty: integer;', 'begin', '  price := 120.50; qty := 5;', '  total := price * qty;', 'end.']
+        correctOrder: ['program CalcTotal;', 'var price, total: real;', '    qty: integer;', 'begin', '  price := 120.50; qty := 5;', '  total := price * qty;', 'end.']
     },
 
     // --- PHASE 3: SELECTION (IF/ELSE) (11-20) ---
@@ -179,19 +185,14 @@ export const pascalLevels = [
         description: 'ධන සංඛ්‍යාවක් දැයි බැලීම.',
         instruction: 'num > 0 නම් "Positive" ලෙස පෙන්වන්න.',
         availableBlocks: [
-            { id: 'if1', text: 'if num > 0 then' },
-            { id: 'if2', text: '  writeln(\'Positive\');' }
+            { id: 'if_p', text: 'program CheckPos;' },
+            { id: 'if_v', text: 'var num: integer;' },
+            { id: 'if_bg', text: 'begin' },
+            { id: 'if1', text: '  if num > 0 then' },
+            { id: 'if2', text: '    writeln(\'Positive\');' },
+            { id: 'if_ed', text: 'end.' }
         ],
-        correctOrder: ['if num > 0 then', '  writeln(\'Positive\');'],
-        baseTemplate: [
-            'program CheckPos;',
-            'var num: integer;',
-            'begin',
-            '  num := 10;',
-            '  {{SLOT}}',
-            '  {{SLOT}}',
-            'end.'
-        ],
+        correctOrder: ['program CheckPos;', 'var num: integer;', 'begin', '  if num > 0 then', '    writeln(\'Positive\');', 'end.'],
         explanation: 'IF කොන්දේසිය සත්‍ය නම් පමණක් ඊළඟ පේළිය ක්‍රියාත්මක වේ.'
     },
     {
@@ -201,12 +202,16 @@ export const pascalLevels = [
         description: 'Pass ද Fail ද යන්න තීරණය කිරීම.',
         instruction: 'marks >= 50 නම් Pass, නැතිනම් Fail.',
         availableBlocks: [
-            { id: 'ie1', text: 'if marks >= 50 then' },
-            { id: 'ie2', text: '  writeln(\'Pass\')' },
-            { id: 'ie3', text: 'else' },
-            { id: 'ie4', text: '  writeln(\'Fail\');' }
+            { id: 'ie_p', text: 'program PassFail;' },
+            { id: 'ie_v', text: 'var marks: integer;' },
+            { id: 'ie_bg', text: 'begin' },
+            { id: 'ie1', text: '  if marks >= 50 then' },
+            { id: 'ie2', text: '    writeln(\'Pass\')' },
+            { id: 'ie3', text: '  else' },
+            { id: 'ie4', text: '    writeln(\'Fail\');' },
+            { id: 'ie_ed', text: 'end.' }
         ],
-        correctOrder: ['if marks >= 50 then', '  writeln(\'Pass\')', 'else', '  writeln(\'Fail\');'],
+        correctOrder: ['program PassFail;', 'var marks: integer;', 'begin', '  if marks >= 50 then', '    writeln(\'Pass\')', '  else', '    writeln(\'Fail\');', 'end.'],
         explanation: 'Pascal හි else යෙදීමට පෙර පේළියේ semicolon (;) නොතිබිය යුතුය.'
     },
     {
@@ -216,12 +221,16 @@ export const pascalLevels = [
         description: 'Modulus operator භාවිතා කිරීම.',
         instruction: '2න් බෙදූ ඉතිරිය (num mod 2) 0 නම් Even.',
         availableBlocks: [
-            { id: 'oe1', text: 'if num mod 2 = 0 then' },
-            { id: 'oe2', text: '  writeln(\'Even\')' },
-            { id: 'oe3', text: 'else' },
-            { id: 'oe4', text: '  writeln(\'Odd\');' }
+            { id: 'oe_p', text: 'program OddEven;' },
+            { id: 'oe_v', text: 'var num: integer;' },
+            { id: 'oe_bg', text: 'begin' },
+            { id: 'oe1', text: '  if num mod 2 = 0 then' },
+            { id: 'oe2', text: '    writeln(\'Even\')' },
+            { id: 'oe3', text: '  else' },
+            { id: 'oe4', text: '    writeln(\'Odd\');' },
+            { id: 'oe_ed', text: 'end.' }
         ],
-        correctOrder: ['if num mod 2 = 0 then', '  writeln(\'Even\')', 'else', '  writeln(\'Odd\');'],
+        correctOrder: ['program OddEven;', 'var num: integer;', 'begin', '  if num mod 2 = 0 then', '    writeln(\'Even\')', '  else', '    writeln(\'Odd\');', 'end.'],
         explanation: '"mod" මගින් බෙදූ පසු ඉතිරිය ලබාදෙයි.'
     },
     {
@@ -231,12 +240,16 @@ export const pascalLevels = [
         description: 'අංක දෙකකින් විශාල එක සෙවීම.',
         instruction: 'a සහ b සසඳා විශාල එක පෙන්වන්න.',
         availableBlocks: [
-            { id: 'mx1', text: 'if a > b then' },
-            { id: 'mx2', text: '  writeln(a)' },
-            { id: 'mx3', text: 'else' },
-            { id: 'mx4', text: '  writeln(b);' }
+            { id: 'mx_p', text: 'program FindMax;' },
+            { id: 'mx_v', text: 'var a, b: integer;' },
+            { id: 'mx_bg', text: 'begin' },
+            { id: 'mx1', text: '  if a > b then' },
+            { id: 'mx2', text: '    writeln(a)' },
+            { id: 'mx3', text: '  else' },
+            { id: 'mx4', text: '    writeln(b);' },
+            { id: 'mx_ed', text: 'end.' }
         ],
-        correctOrder: ['if a > b then', '  writeln(a)', 'else', '  writeln(b);']
+        correctOrder: ['program FindMax;', 'var a, b: integer;', 'begin', '  if a > b then', '    writeln(a)', '  else', '    writeln(b);', 'end.']
     },
     {
         id: 'pas-15',
@@ -245,10 +258,14 @@ export const pascalLevels = [
         description: 'කොන්දේසි දෙකක් පරීක්ෂා කිරීම.',
         instruction: 'වයස 18ට වැඩි සහ ලකුණු 50ට වැඩි නම් "Eligible".',
         availableBlocks: [
-            { id: 'ad1', text: 'if (age > 18) and (marks > 50) then' },
-            { id: 'ad2', text: '  writeln(\'Eligible\');' }
+            { id: 'ad_p', text: 'program Eligibility;' },
+            { id: 'ad_v', text: 'var age, marks: integer;' },
+            { id: 'ad_bg', text: 'begin' },
+            { id: 'ad1', text: '  if (age > 18) and (marks > 50) then' },
+            { id: 'ad2', text: '    writeln(\'Eligible\');' },
+            { id: 'ad_ed', text: 'end.' }
         ],
-        correctOrder: ['if (age > 18) and (marks > 50) then', '  writeln(\'Eligible\');'],
+        correctOrder: ['program Eligibility;', 'var age, marks: integer;', 'begin', '  if (age > 18) and (marks > 50) then', '    writeln(\'Eligible\');', 'end.'],
         explanation: 'කොන්දේසි දෙකක් එකවර සත්‍ය විය යුතු නම් "and" භාවිතා කරයි. කොන්දේසි වරහන් තුළ දැමීම අනිවාර්ය වේ.'
     },
     {
@@ -258,11 +275,16 @@ export const pascalLevels = [
         description: 'If ඇතුලත තවත් If එකක්.',
         instruction: 'ධන සංඛ්‍යාවක් නම් පරිපූර්ණදැයි බලන්න.',
         availableBlocks: [
-            { id: 'ni1', text: 'if num > 0 then' },
-            { id: 'ni2', text: '  if num = 100 then' },
-            { id: 'ni3', text: '    writeln(\'Perfect\');' }
+            { id: 'ni_p', text: 'program NestedIf;' },
+            { id: 'ni_v', text: 'var num: integer;' },
+            { id: 'ni_bg', text: 'begin' },
+            { id: 'ni_init', text: '  num := 100;' },
+            { id: 'ni1', text: '  if num > 0 then' },
+            { id: 'ni2', text: '    if num = 100 then' },
+            { id: 'ni3', text: '      writeln(\'Perfect\');' },
+            { id: 'ni_ed', text: 'end.' }
         ],
-        correctOrder: ['if num > 0 then', '  if num = 100 then', '    writeln(\'Perfect\');']
+        correctOrder: ['program NestedIf;', 'var num: integer;', 'begin', '  num := 100;', '  if num > 0 then', '    if num = 100 then', '      writeln(\'Perfect\');', 'end.']
     },
     {
         id: 'pas-17',
@@ -271,10 +293,15 @@ export const pascalLevels = [
         description: 'අධික අවුරුද්දක් දැයි සෙවීම.',
         instruction: 'අවුරුද්ද 4න් බෙදෙනවානම් Leap Year.',
         availableBlocks: [
-            { id: 'ly1', text: 'if year mod 4 = 0 then' },
-            { id: 'ly2', text: '  writeln(\'Leap Year\');' }
+            { id: 'ly_p', text: 'program LeapYear;' },
+            { id: 'ly_v', text: 'var year: integer;' },
+            { id: 'ly_bg', text: 'begin' },
+            { id: 'ly_init', text: '  year := 2024;' },
+            { id: 'ly1', text: '  if year mod 4 = 0 then' },
+            { id: 'ly2', text: '    writeln(\'Leap Year\');' },
+            { id: 'ly_ed', text: 'end.' }
         ],
-        correctOrder: ['if year mod 4 = 0 then', '  writeln(\'Leap Year\');']
+        correctOrder: ['program LeapYear;', 'var year: integer;', 'begin', '  year := 2024;', '  if year mod 4 = 0 then', '    writeln(\'Leap Year\');', 'end.']
     },
     {
         id: 'pas-18',
@@ -283,11 +310,15 @@ export const pascalLevels = [
         description: 'විකල්ප කිහිපයක් (Grades).',
         instruction: '>75 A, >50 B, else C.',
         availableBlocks: [
-            { id: 'el1', text: 'if marks > 75 then writeln(\'A\')' },
-            { id: 'el2', text: 'else if marks > 50 then writeln(\'B\')' },
-            { id: 'el3', text: 'else writeln(\'C\');' }
+            { id: 'el_p', text: 'program Grades;' },
+            { id: 'el_v', text: 'var marks: integer;' },
+            { id: 'el_bg', text: 'begin' },
+            { id: 'el1', text: '  if marks > 75 then writeln(\'A\')' },
+            { id: 'el2', text: '  else if marks > 50 then writeln(\'B\')' },
+            { id: 'el3', text: '  else writeln(\'C\');' },
+            { id: 'el_ed', text: 'end.' }
         ],
-        correctOrder: ['if marks > 75 then writeln(\'A\')', 'else if marks > 50 then writeln(\'B\')', 'else writeln(\'C\');']
+        correctOrder: ['program Grades;', 'var marks: integer;', 'begin', '  if marks > 75 then writeln(\'A\')', '  else if marks > 50 then writeln(\'B\')', '  else writeln(\'C\');', 'end.']
     },
     {
         id: 'pas-19',
@@ -296,12 +327,16 @@ export const pascalLevels = [
         description: ' මුරපදය පරීක්ෂා කිරීම.',
         instruction: 'Password එක "123" නම් Access.',
         availableBlocks: [
-            { id: 'lc1', text: 'if pass = \'123\' then' },
-            { id: 'lc2', text: '  writeln(\'Access Granted\')' },
-            { id: 'lc3', text: 'else' },
-            { id: 'lc4', text: '  writeln(\'Access Denied\');' }
+            { id: 'lc_p', text: 'program Login;' },
+            { id: 'lc_v', text: 'var pass: string;' },
+            { id: 'lc_bg', text: 'begin' },
+            { id: 'lc1', text: '  if pass = \'123\' then' },
+            { id: 'lc2', text: '    writeln(\'Access Granted\')' },
+            { id: 'lc3', text: '  else' },
+            { id: 'lc4', text: '    writeln(\'Access Denied\');' },
+            { id: 'lc_ed', text: 'end.' }
         ],
-        correctOrder: ['if pass = \'123\' then', '  writeln(\'Access Granted\')', 'else', '  writeln(\'Access Denied\');']
+        correctOrder: ['program Login;', 'var pass: string;', 'begin', '  if pass = \'123\' then', '    writeln(\'Access Granted\')', '  else', '    writeln(\'Access Denied\');', 'end.']
     },
     {
         id: 'pas-20',
@@ -310,12 +345,16 @@ export const pascalLevels = [
         description: 'If වෙනුවට Case භාවිතය.',
         instruction: 'දවස 1 නම් Monday, 2 නම් Tuesday.',
         availableBlocks: [
-            { id: 'cs1', text: 'case day of' },
-            { id: 'cs2', text: '  1: writeln(\'Monday\');' },
-            { id: 'cs3', text: '  2: writeln(\'Tuesday\');' },
-            { id: 'cs4', text: 'end;' }
+            { id: 'cs_p', text: 'program Weekday;' },
+            { id: 'cs_v', text: 'var day: integer;' },
+            { id: 'cs_bg', text: 'begin' },
+            { id: 'cs1', text: '  case day of' },
+            { id: 'cs2', text: '    1: writeln(\'Monday\');' },
+            { id: 'cs3', text: '    2: writeln(\'Tuesday\');' },
+            { id: 'cs4', text: '  end;' },
+            { id: 'cs_ed', text: 'end.' }
         ],
-        correctOrder: ['case day of', '  1: writeln(\'Monday\');', '  2: writeln(\'Tuesday\');', 'end;'],
+        correctOrder: ['program Weekday;', 'var day: integer;', 'begin', '  case day of', '    1: writeln(\'Monday\');', '    2: writeln(\'Tuesday\');', '  end;', 'end.'],
         explanation: 'විකල්ප ගොඩක් ඇති විට Case Statement එක භාවිතය පහසුයි. මෙය "end" එකකින් අවසන් කළ යුතුය.'
     },
 
@@ -327,10 +366,16 @@ export const pascalLevels = [
         description: '1 සිට 5 දක්වා ලියන්න.',
         instruction: 'සරල FOR Loop එකක්.',
         availableBlocks: [
-            { id: 'fl1', text: 'for i := 1 to 5 do' },
-            { id: 'fl2', text: '  writeln(i);' }
+            { id: 'fl1', text: 'program Loop;' },
+            { id: 'fl2', text: 'var i: integer;' },
+            { id: 'fl3', text: 'begin' },
+            { id: 'fl4', text: '  for i := 1 to 5 do' },
+            { id: 'fl_b', text: '  begin' },
+            { id: 'fl5', text: '    writeln(i);' },
+            { id: 'fl_e', text: '  end;' },
+            { id: 'fl6', text: 'end.' }
         ],
-        correctOrder: ['for i := 1 to 5 do', '  writeln(i);'],
+        correctOrder: ['program Loop;', 'var i: integer;', 'begin', '  for i := 1 to 5 do', '  begin', '    writeln(i);', '  end;', 'end.'],
         output: '1\n2\n3\n4\n5',
         explanation: 'FOR Loop එකේදී කවුන්ටර විචල්‍යය (i) ස්වයංක්‍රීයව වැඩි වේ.'
     },
@@ -341,10 +386,16 @@ export const pascalLevels = [
         description: '5 සිට 1 දක්වා අඩුවන පිළිවෙලට.',
         instruction: 'downto භාවිතය.',
         availableBlocks: [
-            { id: 'fr1', text: 'for i := 5 downto 1 do' },
-            { id: 'fr2', text: '  writeln(i);' }
+            { id: 'fr1', text: 'program Rev;' },
+            { id: 'fr2', text: 'var i: integer;' },
+            { id: 'fr3', text: 'begin' },
+            { id: 'fr4', text: '  for i := 5 downto 1 do' },
+            { id: 'fr_b', text: '  begin' },
+            { id: 'fr5', text: '    writeln(i);' },
+            { id: 'fr_e', text: '  end;' },
+            { id: 'fr6', text: 'end.' }
         ],
-        correctOrder: ['for i := 5 downto 1 do', '  writeln(i);']
+        correctOrder: ['program Rev;', 'var i: integer;', 'begin', '  for i := 5 downto 1 do', '  begin', '    writeln(i);', '  end;', 'end.'],
     },
     {
         id: 'pas-23',
@@ -353,13 +404,18 @@ export const pascalLevels = [
         description: '5ට අඩු නම් ලූප් කරන්න.',
         instruction: 'x < 5 වන තුරු ලියන්න.',
         availableBlocks: [
-            { id: 'wl1', text: 'while x < 5 do' },
-            { id: 'wl2', text: 'begin' },
-            { id: 'wl3', text: '  writeln(x);' },
-            { id: 'wl4', text: '  x := x + 1;' },
-            { id: 'wl5', text: 'end;' }
+            { id: 'wl1', text: 'program WhileLoop;' },
+            { id: 'wl2', text: 'var x: integer;' },
+            { id: 'wl3', text: 'begin' },
+            { id: 'wl4', text: '  x := 0;' },
+            { id: 'wl5', text: '  while x < 5 do' },
+            { id: 'wl6', text: '  begin' },
+            { id: 'wl7', text: '    writeln(x);' },
+            { id: 'wl8', text: '    x := x + 1;' },
+            { id: 'wl9', text: '  end;' },
+            { id: 'wl10', text: 'end.' }
         ],
-        correctOrder: ['while x < 5 do', 'begin', '  writeln(x);', '  x := x + 1;', 'end;'],
+        correctOrder: ['program WhileLoop;', 'var x: integer;', 'begin', '  x := 0;', '  while x < 5 do', '  begin', '    writeln(x);', '    x := x + 1;', '  end;', 'end.'],
         explanation: 'WHILE Loop එකේදී කොන්දේසිය සත්‍ය වන තාක් කල් ක්‍රියාත්මක වේ. Begin...End පාවිච්චි කිරීම වැදගත්.'
     },
     {
@@ -369,11 +425,17 @@ export const pascalLevels = [
         description: 'අවම වශයෙන් එක් වරක්වත් ක්‍රියාත්මක වීම.',
         instruction: 'x 10 වන තුරු එකතු කරන්න.',
         availableBlocks: [
-            { id: 'rp1', text: 'repeat' },
-            { id: 'rp2', text: '  x := x + 1;' },
-            { id: 'rp3', text: 'until x = 10;' }
+            { id: 'rp_p', text: 'program RepeatLoop;' },
+            { id: 'rp_v', text: 'var x: integer;' },
+            { id: 'rp_bg', text: 'begin' },
+            { id: 'rp_i', text: '  x := 0;' },
+            { id: 'rp1', text: '  repeat' },
+            { id: 'rp2', text: '    x := x + 1;' },
+            { id: 'rp_out', text: '    writeln(x);' },
+            { id: 'rp3', text: '  until x = 10;' },
+            { id: 'rp_ed', text: 'end.' }
         ],
-        correctOrder: ['repeat', '  x := x + 1;', 'until x = 10;'],
+        correctOrder: ['program RepeatLoop;', 'var x: integer;', 'begin', '  x := 0;', '  repeat', '    x := x + 1;', '    writeln(x);', '  until x = 10;', 'end.'],
         explanation: 'REPEAT ... UNTIL හි කොන්දේසිය පරීක්ෂා කරන්නේ අවසානයේදියි. එම නිසා අඩුම තරමේ එක් වරක් වත් ලූපය ක්‍රියාත්මක වේ.'
     },
     {
@@ -383,11 +445,18 @@ export const pascalLevels = [
         description: '1-10 එකතුව (For Loop).',
         instruction: 'Sum එකතු කරගන්න.',
         availableBlocks: [
-            { id: 'sm1', text: 'sum := 0;' },
-            { id: 'sm2', text: 'for i := 1 to 10 do' },
-            { id: 'sm3', text: '  sum := sum + i;' }
+            { id: 'sm_p', text: 'program Summation;' },
+            { id: 'sm_v', text: 'var i, sum: integer;' },
+            { id: 'sm_bg', text: 'begin' },
+            { id: 'sm1', text: '  sum := 0;' },
+            { id: 'sm2', text: '  for i := 1 to 10 do' },
+            { id: 'sm_lb', text: '  begin' },
+            { id: 'sm3', text: '    sum := sum + i;' },
+            { id: 'sm_le', text: '  end;' },
+            { id: 'sm4', text: '  writeln(sum);' },
+            { id: 'sm_ed', text: 'end.' }
         ],
-        correctOrder: ['sum := 0;', 'for i := 1 to 10 do', '  sum := sum + i;']
+        correctOrder: ['program Summation;', 'var i, sum: integer;', 'begin', '  sum := 0;', '  for i := 1 to 10 do', '  begin', '    sum := sum + i;', '  end;', '  writeln(sum);', 'end.']
     },
     {
         id: 'pas-26',
@@ -396,10 +465,16 @@ export const pascalLevels = [
         description: '2 ගුණන වගුව.',
         instruction: '2 * i මුද්‍රණය කරන්න.',
         availableBlocks: [
-            { id: 'mt1', text: 'for i := 1 to 12 do' },
-            { id: 'mt2', text: '  writeln(2, \' * \', i, \' = \', 2*i);' }
+            { id: 'mt1', text: 'program Table;' },
+            { id: 'mt2', text: 'var i: integer;' },
+            { id: 'mt3', text: 'begin' },
+            { id: 'mt4', text: '  for i := 1 to 12 do' },
+            { id: 'mt_b', text: '  begin' },
+            { id: 'mt5', text: '    writeln(2, \' * \', i, \' = \', 2*i);' },
+            { id: 'mt_e', text: '  end;' },
+            { id: 'mt6', text: 'end.' }
         ],
-        correctOrder: ['for i := 1 to 12 do', '  writeln(2, \' * \', i, \' = \', 2*i);']
+        correctOrder: ['program Table;', 'var i: integer;', 'begin', '  for i := 1 to 12 do', '  begin', '    writeln(2, \' * \', i, \' = \', 2*i);', '  end;', 'end.']
     },
     {
         id: 'pas-27',
@@ -408,10 +483,16 @@ export const pascalLevels = [
         description: 'වර්ග සංඛ්‍යා මුද්‍රණය.',
         instruction: '1 සිට 5 දක්වා වර්ග (Square) සොයන්න.',
         availableBlocks: [
-            { id: 'sq1', text: 'for i := 1 to 5 do' },
-            { id: 'sq2', text: '  writeln(i * i);' }
+            { id: 'sq_p', text: 'program Squares;' },
+            { id: 'sq_v', text: 'var i: integer;' },
+            { id: 'sq_bg', text: 'begin' },
+            { id: 'sq1', text: '  for i := 1 to 5 do' },
+            { id: 'sq_lb', text: '  begin' },
+            { id: 'sq2', text: '    writeln(i * i);' },
+            { id: 'sq_le', text: '  end;' },
+            { id: 'sq_ed', text: 'end.' }
         ],
-        correctOrder: ['for i := 1 to 5 do', '  writeln(i * i);']
+        correctOrder: ['program Squares;', 'var i: integer;', 'begin', '  for i := 1 to 5 do', '  begin', '    writeln(i * i);', '  end;', 'end.']
     },
     {
         id: 'pas-28',
@@ -420,11 +501,15 @@ export const pascalLevels = [
         description: '0 ගහනකම් Input ගන්න.',
         instruction: '0 ආවොත් නවතින්න.',
         availableBlocks: [
-            { id: 'il1', text: 'repeat' },
-            { id: 'il2', text: '  readln(num);' },
-            { id: 'il3', text: 'until num = 0;' }
+            { id: 'il_p', text: 'program InputLoop;' },
+            { id: 'il_v', text: 'var num: integer;' },
+            { id: 'il_bg', text: 'begin' },
+            { id: 'il1', text: '  repeat' },
+            { id: 'il2', text: '    readln(num);' },
+            { id: 'il3', text: '  until num = 0;' },
+            { id: 'il_ed', text: 'end.' }
         ],
-        correctOrder: ['repeat', '  readln(num);', 'until num = 0;']
+        correctOrder: ['program InputLoop;', 'var num: integer;', 'begin', '  repeat', '    readln(num);', '  until num = 0;', 'end.']
     },
     {
         id: 'pas-29',
@@ -433,10 +518,16 @@ export const pascalLevels = [
         description: 'තරු 5ක් ළඟින් ළඟ මුද්‍රණය.',
         instruction: '***** ලෙස පෙන්වන්න.',
         availableBlocks: [
-            { id: 'pt1', text: 'for i := 1 to 5 do' },
-            { id: 'pt2', text: '  write(\'*\');' }
+            { id: 'pt_p', text: 'program Patterns;' },
+            { id: 'pt_v', text: 'var i: integer;' },
+            { id: 'pt_bg', text: 'begin' },
+            { id: 'pt1', text: '  for i := 1 to 5 do' },
+            { id: 'pt_lb', text: '  begin' },
+            { id: 'pt2', text: '    write(\'*\');' },
+            { id: 'pt_le', text: '  end;' },
+            { id: 'pt_ed', text: 'end.' }
         ],
-        correctOrder: ['for i := 1 to 5 do', '  write(\'*\');'],
+        correctOrder: ['program Patterns;', 'var i: integer;', 'begin', '  for i := 1 to 5 do', '  begin', '    write(\'*\');', '  end;', 'end.'],
         output: '*****',
         explanation: 'write භාවිතා කළ විට පේළිය මාරු නොවේ.'
     },
@@ -447,10 +538,18 @@ export const pascalLevels = [
         description: 'ඉරට්ටේ සංඛ්‍යා පමණක් ලියන්න.',
         instruction: '1-10 අතර ඉරට්ටේ සංඛ්‍යා.',
         availableBlocks: [
-            { id: 'en1', text: 'for i := 1 to 10 do' },
-            { id: 'en2', text: '  if i mod 2 = 0 then' },
-            { id: 'en3', text: '    writeln(i);' }
+            { id: 'en_p', text: 'program EvenNums;' },
+            { id: 'en_v', text: 'var i: integer;' },
+            { id: 'en_bg', text: 'begin' },
+            { id: 'en1', text: '  for i := 1 to 10 do' },
+            { id: 'en_lb', text: '  begin' },
+            { id: 'en2', text: '    if i mod 2 = 0 then' },
+            { id: 'en_ib', text: '    begin' },
+            { id: 'en3', text: '      writeln(i);' },
+            { id: 'en_ie', text: '    end;' },
+            { id: 'en_le', text: '  end;' },
+            { id: 'en_ed', text: 'end.' }
         ],
-        correctOrder: ['for i := 1 to 10 do', '  if i mod 2 = 0 then', '    writeln(i);']
+        correctOrder: ['program EvenNums;', 'var i: integer;', 'begin', '  for i := 1 to 10 do', '  begin', '    if i mod 2 = 0 then', '    begin', '      writeln(i);', '    end;', '  end;', 'end.']
     }
 ];

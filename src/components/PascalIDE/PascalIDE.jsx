@@ -58,27 +58,49 @@ export default function PascalIDE() {
     };
 
     const handleRun = async () => {
-        if (isRunning) return;
+        if (!code.trim()) return;
         setIsRunning(true);
-        setOutput([]); // Clear previous
+        setOutput([]);
 
         const interpreter = interpreterRef.current;
 
-        await interpreter.run(
-            code,
-            (text) => {
-                setOutput(prev => [...prev, text]);
-            },
-            () => {
-                // Input Request
-                setIsWaitingInput(true);
-                return new Promise(resolve => {
-                    inputResolverRef.current = resolve;
-                });
-            }
-        );
+        try {
+            await interpreter.run(
+                code,
+                (text) => {
+                    setOutput(prev => {
+                        // Handle Write vs Writeln buffering
+                        const lastLine = prev.length > 0 ? prev[prev.length - 1] : "";
 
-        setIsRunning(false);
+                        // If output is simple string, append to last line and handle newlines
+                        // "Hello" -> appends to last line
+                        // "Hello\n" -> appends "Hello", then new line
+
+                        // Combine last pending line with new text
+                        const combined = lastLine + text;
+                        const lines = combined.split('\n');
+
+                        // Replace last line with the first part of split, add rest
+                        return [...prev.slice(0, -1), ...lines];
+                    });
+                },
+                () => {
+                    setIsWaitingInput(true);
+                    return new Promise(resolve => {
+                        inputResolverRef.current = resolve; // Keep this for handleInputSubmit
+                        // window.resolveInput = (val) => { // This was in the instruction, but inputResolverRef is already used
+                        //     setIsWaitingInput(false);
+                        //     resolve(val);
+                        // };
+                    });
+                }
+            );
+        } catch (err) {
+            setOutput(prev => [...prev, `[ERROR]: ${err.message}`]);
+        } finally {
+            setIsRunning(false);
+            setIsWaitingInput(false);
+        }
     };
 
     const handleInputSubmit = (e) => {
@@ -91,7 +113,7 @@ export default function PascalIDE() {
         }
     };
 
-    // Handle Tab key for indentation
+    // Handle Tab and Enter keys
     const handleKeyDown = (e) => {
         if (e.key === 'Tab') {
             e.preventDefault();
@@ -99,13 +121,55 @@ export default function PascalIDE() {
             const end = e.target.selectionEnd;
             const spaces = '    '; // 4 spaces indentation
 
-            const newCode = code.substring(0, start) + spaces + code.substring(end);
+            document.execCommand('insertText', false, spaces);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+
+            const textarea = e.target;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const value = textarea.value;
+
+            // Find start of current line
+            const currentLineStart = value.lastIndexOf('\n', start - 1) + 1;
+            const currentLineEnd = value.indexOf('\n', start);
+            const lineEnd = currentLineEnd === -1 ? value.length : currentLineEnd;
+
+            const currentLine = value.substring(currentLineStart, lineEnd);
+            const beforeCursor = value.substring(currentLineStart, start);
+
+            // Calculate current indentation
+            const match = currentLine.match(/^\s*/);
+            const currentIndent = match ? match[0] : '';
+
+            let nextIndent = currentIndent;
+
+            // Check for block openers
+            const trimmedBefore = beforeCursor.trim().toLowerCase();
+            // Keywords that trigger indent
+            const indentTriggers = ['begin', 'then', 'do', 'repeat', 'else', 'var', 'const', 'type'];
+
+            // Simple check if line ends with a trigger or if prompt `of` (case)
+            const shouldIndent = indentTriggers.some(keyword => trimmedBefore.endsWith(keyword));
+
+            if (shouldIndent) {
+                nextIndent += '    ';
+            }
+
+            const insertion = '\n' + nextIndent;
+
+            // Allow Undo/Redo by using execCommand if possible, or state update
+            // React state update reset undo history usually, but let's stick to state for consistency with existing code
+            // simpler approach compliant with existing structure:
+
+            const newCode = value.substring(0, start) + insertion + value.substring(end);
             setCode(newCode);
 
-            // Move cursor forward
             setTimeout(() => {
                 if (textareaRef.current) {
-                    textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + 4;
+                    textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + insertion.length;
+                    textareaRef.current.scrollTop = textarea.scrollTop; // prevent jump
+                    syncScroll();
                 }
             }, 0);
         }

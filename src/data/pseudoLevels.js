@@ -48,6 +48,9 @@ export const pseudoLevels = [
             { id: 'v5', text: 'END' }
         ],
         correctOrder: ['BEGIN', 'age = 16', 'name = "Kamal"', 'OUTPUT name, age', 'END'],
+        alternateOrders: [
+            ['BEGIN', 'name = "Kamal"', 'age = 16', 'OUTPUT name, age', 'END']
+        ],
         explanation: 'Variable එකක් යනු දත්ත ගබඩා කළ හැකි ස්ථානයකි. මෙහිදී අපි `age` සහ `name` යන Variables දෙක සාදා ඒවාට අගයන් ආදේශ (Assign) කළෙමු.'
     },
     {
@@ -56,6 +59,7 @@ export const pseudoLevels = [
         type: 'sequence',
         description: 'විචල්‍යයන් භාවිතා කර ගණනය කිරීම් සිදු කිරීම.',
         instruction: 'වෘත්තයක වර්ගඵලය (Area) සෙවීමේ පියවර පෙළගස්වන්න.',
+        inputs: { radius: 10 },
         availableBlocks: [
             { id: 'c1', text: 'BEGIN' },
             { id: 'c2', text: 'INPUT radius' },
@@ -91,6 +95,7 @@ export const pseudoLevels = [
         type: 'sequence',
         description: 'යම් කොන්දේසියක් මත තීරණයක් ගැනීම.',
         instruction: 'වයස 18 ට වැඩි නම් "Adult" ලෙස මුද්‍රණය කරන කේතය සකසන්න.',
+        inputs: { age: 20 },
         availableBlocks: [
             { id: 'if1', text: 'BEGIN' },
             { id: 'if2', text: 'INPUT age' },
@@ -108,6 +113,7 @@ export const pseudoLevels = [
         type: 'sequence',
         description: 'කොන්දේසිය සත්‍ය හෝ අසත්‍ය වූ විට ක්‍රියාත්මක වන කොටස්.',
         instruction: 'විභාගය සමත් (Pass) ද අසමත් (Fail) ද යන්න සොයන කේතය සකසන්න.',
+        inputs: { marks: 75 },
         availableBlocks: [
             { id: 'ie1', text: 'BEGIN' },
             { id: 'ie2', text: 'INPUT marks' },
@@ -127,6 +133,7 @@ export const pseudoLevels = [
         type: 'sequence',
         description: 'සංඛ්‍යාවක් ඔත්තේ ද ඉරට්ටේ ද යන්න සෙවීම.',
         instruction: 'අංකය 2න් බෙදූ විට ඉතිරිය 0 නම් එය "Even" වේ.',
+        inputs: { number: 4 },
         availableBlocks: [
             { id: 'oe1', text: 'BEGIN' },
             { id: 'oe2', text: 'INPUT number' },
@@ -147,6 +154,7 @@ export const pseudoLevels = [
         type: 'sequence',
         description: 'කොන්දේසි කිහිපයක් පරීක්ෂා කිරීම (A, B, C Grading).',
         instruction: 'ලකුණු 75ට වැඩි නම් A, 50ට වැඩි නම් B, නැතිනම් C.',
+        inputs: { marks: 80 },
         availableBlocks: [
             { id: 'g1', text: 'BEGIN' },
             { id: 'g2', text: 'INPUT marks' },
@@ -220,6 +228,7 @@ export const pseudoLevels = [
         type: 'sequence',
         description: 'නිවැරදි Password එක දෙන තුරු නැවත ඇසීම.',
         instruction: 'අවම වශයෙන් එක් වරක්වත් Password එක අසන ආකාරය සකසන්න.',
+        inputs: { password: ["wrong", "123"] },
         availableBlocks: [
             { id: 'd1', text: 'BEGIN' },
             { id: 'd2', text: 'REPEAT' },

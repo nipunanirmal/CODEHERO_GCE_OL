@@ -33,20 +33,20 @@ export class PascalInterpreter {
 
         try {
             const tokens = this.tokenize(code);
-            
+
             // Pass 1: Syntax Check (Dry Run)
             // skips logic/IO, checks structure and tokens
-            await this.parseAndExecute(tokens, true); 
+            await this.parseAndExecute(tokens, true);
 
             // Pass 2: Execution
             // Reset state just in case (though dry run shouldn't mutate)
-            this.reset(); 
+            this.reset();
             this.isRunning = true;
             this.onOutput = onOutput;
             this.onInputRequest = onInputRequest; // Re-bind callbacks
-            
+
             await this.parseAndExecute(tokens, false);
-            
+
         } catch (err) {
             this.handleError(err);
         } finally {
@@ -62,10 +62,10 @@ export class PascalInterpreter {
     tokenize(code) {
         // Simple regex based tokenizer
         // Matches: strings, symbols, numbers, words
-        const tokenRegex = /'[^']*'|<>|<=|>=|:=|[(){}[\],;.]|\+|-|\*|\/|[a-zA-Z_]\w*|\d+(\.\d+)?/g;
+        const tokenRegex = /'[^']*'|<>|<=|>=|:=|[=]|<|>|[(){}[\],;.]|\+|-|\*|\/|[a-zA-Z_]\w*|\d+(\.\d+)?/g;
         let match;
         const tokens = [];
-        
+
         // Remove comments (* *) and { }
         code = code.replace(/\(\*[\s\S]*?\*\)/g, '').replace(/\{[\s\S]*?\}/g, '');
 
@@ -122,7 +122,7 @@ export class PascalInterpreter {
 
         // --- EXPRESSION PARSER (Recursive Descent) ---
         // Hierarchy: Logic (OR) -> Logic (AND) -> Logic (NOT) -> Relational (=, <, >) -> Additive (+, -) -> Multiplicative (*, /, div, mod) -> Factor
-        
+
         // Helper to extract expression tokens until a terminator (;, then, do, etc.)
         const getExpressionTokens = (terminators) => {
             const expr = [];
@@ -130,10 +130,10 @@ export class PascalInterpreter {
             while (pos < tokens.length) {
                 const t = tokens[pos];
                 if (parenBalance === 0 && terminators.includes(t.value)) break;
-                
+
                 if (t.value === '(') parenBalance++;
                 if (t.value === ')') parenBalance--;
-                
+
                 expr.push(consume());
             }
             return expr;
@@ -153,7 +153,7 @@ export class PascalInterpreter {
                     consume('begin');
                     await executeBlock(shouldExec, false); // recurse for body
                     consume('end');
-                    
+
                     if (isMain) {
                         // Main program MUST end with '.'
                         const next = peek();
@@ -164,7 +164,7 @@ export class PascalInterpreter {
                     } else {
                         consumeSeparator();
                     }
-                } 
+                }
                 else if (t.value === ';') {
                     consume();
                 }
@@ -175,17 +175,17 @@ export class PascalInterpreter {
         };
 
         const consumeSeparator = () => {
-             const next = peek();
-             if (!next) return; // Allow EOF for internal checks, but Main block catches strictness
-             if (next.value === ';') {
-                 consume(';');
-             } else if (next.value === 'else' || next.value === 'end' || next.value === 'until' || next.value === '.') {
-                 // Semicolon is optional/forbidden here in strict Pascal, so we treat it as valid separator
-                 return;
-             } else {
-                 // For any other token, we expect a semicolon separator
-                 throw new Error(`Expected ';' but found '${next.value}'`);
-             }
+            const next = peek();
+            if (!next) return; // Allow EOF for internal checks, but Main block catches strictness
+            if (next.value === ';') {
+                consume(';');
+            } else if (next.value === 'else' || next.value === 'end' || next.value === 'until' || next.value === '.') {
+                // Semicolon is optional/forbidden here in strict Pascal, so we treat it as valid separator
+                return;
+            } else {
+                // For any other token, we expect a semicolon separator
+                throw new Error(`Expected ';' but found '${next.value}'`);
+            }
         };
 
         const executeStatement = async (shouldExec = true) => {
@@ -198,33 +198,33 @@ export class PascalInterpreter {
                 consume(); // Eat write/writeln
                 consume('(');
                 let outputStr = '';
-                
-                // Handle arguments: strings, variables, expressions
-                while(true) {
-                     // Extract expression until comma or paren
-                     let expr = [];
-                     let paren = 0;
-                     while(pos < tokens.length) {
-                         const n = peek();
-                         if (paren === 0 && (n.value === ',' || n.value === ')')) break;
-                         if (n.value === '(') paren++;
-                         if (n.value === ')') paren--;
-                         expr.push(consume());
-                     }
-                     
-                     if (shouldExec) {
-                        outputStr += this.evalLogic(expr);
-                     }
 
-                     if (peek().value === ',') {
-                         consume(',');
-                     } else {
-                         break;
-                     }
+                // Handle arguments: strings, variables, expressions
+                while (true) {
+                    // Extract expression until comma or paren
+                    let expr = [];
+                    let paren = 0;
+                    while (pos < tokens.length) {
+                        const n = peek();
+                        if (paren === 0 && (n.value === ',' || n.value === ')')) break;
+                        if (n.value === '(') paren++;
+                        if (n.value === ')') paren--;
+                        expr.push(consume());
+                    }
+
+                    if (shouldExec) {
+                        outputStr += this.evalLogic(expr);
+                    }
+
+                    if (peek().value === ',') {
+                        consume(',');
+                    } else {
+                        break;
+                    }
                 }
                 consume(')');
                 consumeSeparator();
-                
+
                 if (shouldExec) {
                     this.onOutput(outputStr + (isLine ? '\n' : ''));
                 }
@@ -242,7 +242,7 @@ export class PascalInterpreter {
                     if (shouldExec) {
                         // ASYNC INPUT
                         const inputVal = await this.onInputRequest();
-                        
+
                         // Basic type inference or storage
                         if (inputVal !== null && inputVal !== undefined) {
                             if (!isNaN(inputVal) && inputVal.trim() !== '') {
@@ -258,31 +258,93 @@ export class PascalInterpreter {
                     }
                 } else {
                     consumeSeparator();
-                     // Just wait for enter
+                    // Just wait for enter
                     if (shouldExec) {
                         await this.onInputRequest();
                     }
                 }
             }
+            // WHILE Loop
+            else if (t.value === 'while') {
+                consume('while');
+                let condExpr = [];
+                while (peek().value !== 'do') {
+                    condExpr.push(consume());
+                }
+                consume('do');
+
+                const bodyStartPos = pos;
+
+                if (shouldExec) {
+                    // Re-evaluate condition each time
+                    while (this.evalLogic(condExpr)) {
+                        pos = bodyStartPos;
+                        await executeStatement(true);
+                    }
+                    // When False, we must advance pos past the body one last time
+                    pos = bodyStartPos;
+                    await executeStatement(false);
+                } else {
+                    await executeStatement(false);
+                }
+            }
+            // REPEAT Loop
+            else if (t.value === 'repeat') {
+                consume('repeat');
+                const bodyStartPos = pos;
+
+                if (shouldExec) {
+                    let cond = false;
+                    do {
+                        pos = bodyStartPos;
+                        // Execute sequence until 'until'
+                        while (peek() && peek().value !== 'until') {
+                            await executeStatement(true);
+                            // Semicolons are separators in Pascal
+                            if (peek() && peek().value === ';') consume();
+                        }
+
+                        consume('until');
+                        let condExpr = [];
+                        // Read until ; or end of statement
+                        while (peek() && peek().value !== ';') {
+                            condExpr.push(consume());
+                        }
+
+                        cond = this.evalLogic(condExpr); // True means STOP repeating
+
+                    } while (!cond);
+
+                } else {
+                    // Skip
+                    while (peek() && peek().value !== 'until') {
+                        await executeStatement(false);
+                        if (peek() && peek().value === ';') consume();
+                    }
+                    consume('until');
+                    while (peek() && peek().value !== ';') consume();
+                }
+                consumeSeparator();
+            }
             // IF
             else if (t.value === 'if') {
                 consume('if');
                 let conditionExpr = [];
-                while(peek().value !== 'then') {
+                while (peek().value !== 'then') {
                     conditionExpr.push(consume());
                 }
-                
+
                 let condition = false;
                 if (shouldExec) {
                     condition = this.evalLogic(conditionExpr);
                 }
-                
+
                 consume('then');
-                
+
                 // Then block
                 // Determine enablement: Parent must be exec, AND condition must be true
-                await executeStatement(shouldExec && condition); 
-                
+                await executeStatement(shouldExec && condition);
+
                 // check else
                 if (peek() && peek().value === 'else') {
                     consume('else');
@@ -298,86 +360,86 @@ export class PascalInterpreter {
                 consume(':=');
                 // Start Val expr
                 let startExpr = [];
-                while(peek().value !== 'to' && peek().value !== 'downto') {
+                while (peek().value !== 'to' && peek().value !== 'downto') {
                     startExpr.push(consume());
                 }
-                
+
                 const type = consume().value; // to or downto
-                
+
                 let endExpr = [];
-                while(peek().value !== 'do') {
-                     endExpr.push(consume());
+                while (peek().value !== 'do') {
+                    endExpr.push(consume());
                 }
                 consume('do');
-                
+
                 // Loop body position
                 const bodyStartPos = pos;
-                
+
                 if (shouldExec) {
                     const startVal = this.evalLogic(startExpr);
                     const endVal = this.evalLogic(endExpr);
                     this.variables[varName] = startVal;
-                    
-                    while(true) {
-                         // Check condition
-                         if (type === 'to' && this.variables[varName] > endVal) break;
-                         if (type === 'downto' && this.variables[varName] < endVal) break;
-                         
-                         // Run body
-                         pos = bodyStartPos;
-                         await executeStatement(true); 
 
-                         // Increment/Decrement
-                         if (type === 'to') this.variables[varName]++;
-                         else this.variables[varName]--;
+                    while (true) {
+                        // Check condition
+                        if (type === 'to' && this.variables[varName] > endVal) break;
+                        if (type === 'downto' && this.variables[varName] < endVal) break;
+
+                        // Run body
+                        pos = bodyStartPos;
+                        await executeStatement(true);
+
+                        // Increment/Decrement
+                        if (type === 'to') this.variables[varName]++;
+                        else this.variables[varName]--;
                     }
-                     // After loop finishes, we need to leave 'pos' AFTER the body.
-                     // The last iteration of executeStatement(true) moved pos past body.
-                     // BUT, if loop didn't run at all? or after loop ends, we have re-run body one last time?
-                     // NO. 
-                     // We need to advance pos past body properly.
-                     // Since we reset pos, we end up at end of body.
-                     // But wait, if we break, we are at START of body.
-                     // So we must executeStatement(false) once to skip body tokens.
-                     pos = bodyStartPos;
-                     await executeStatement(false);
+                    // After loop finishes, we need to leave 'pos' AFTER the body.
+                    // The last iteration of executeStatement(true) moved pos past body.
+                    // BUT, if loop didn't run at all? or after loop ends, we have re-run body one last time?
+                    // NO. 
+                    // We need to advance pos past body properly.
+                    // Since we reset pos, we end up at end of body.
+                    // But wait, if we break, we are at START of body.
+                    // So we must executeStatement(false) once to skip body tokens.
+                    pos = bodyStartPos;
+                    await executeStatement(false);
                 } else {
                     // Just skip body
-                     await executeStatement(false);
+                    await executeStatement(false);
                 }
             }
             // ASSIGNMENT (Var := Val)
-            else if (t.type === 'IDENTIFIER' && tokens[pos+1] && tokens[pos+1].value === ':=') {
+            else if (t.type === 'IDENTIFIER' && tokens[pos + 1] && tokens[pos + 1].value === ':=') {
                 const varName = consume('IDENTIFIER').value;
                 consume(':=');
                 let expr = [];
-                while(peek().value !== ';' && peek().value !== 'end' && peek().value !== 'else' && peek().value !== 'until') {
+                while (peek().value !== ';' && peek().value !== 'end' && peek().value !== 'else' && peek().value !== 'until') {
                     expr.push(consume());
                 }
-                
+
                 if (shouldExec) {
                     this.variables[varName] = this.evalLogic(expr);
                 }
                 consumeSeparator();
             }
-             else if (t.value === 'program') {
+            else if (t.value === 'program') {
                 // consume until ;
-                while(peek().value !== ';') consume();
+                while (peek().value !== ';') consume();
                 consume(';');
             } else if (t.value === 'var') {
                 consume('var');
                 // var a, b: integer;
                 while (peek().value !== 'begin') {
-                     // Eat decls
-                     // For this simple interpreter, we ignore types mostly, just let vars execute.
-                     consume(); 
+                    // Eat decls
+                    // For this simple interpreter, we ignore types mostly, just let vars execute.
+                    consume();
                 }
             } else if (t.value === 'begin') {
-                 // Should be handled by ExecuteBlock but if encountered nested
-                 consume('begin');
-                 await executeBlock(shouldExec);
-                 consume('end');
-                 consumeSeparator();
+                // Should be handled by ExecuteBlock but if encountered nested
+                consume('begin');
+                await executeBlock(shouldExec);
+                consume('end');
+                consumeSeparator();
             }
             else {
                 // Skip unknown or extra
@@ -392,7 +454,7 @@ export class PascalInterpreter {
     // --- EVALUATOR ---
     evalLogic(tokens) {
         if (tokens.length === 0) return null;
-        
+
         // 1. Shunting Yard Algorithm to parse expression with precedence
         // Precedence: ( ) -> NOT -> * / DIV MOD AND -> + - OR -> = <> < > <= >=
         const precedence = {
@@ -400,7 +462,7 @@ export class PascalInterpreter {
             '*': 3, '/': 3, 'div': 3, 'mod': 3, 'and': 3,
             '+': 2, '-': 2, 'or': 2,
             '=': 1, '<>': 1, '<': 1, '>': 1, '<=': 1, '>=': 1,
-            '(': 0 
+            '(': 0
         };
 
         const outputQueue = [];
@@ -410,26 +472,26 @@ export class PascalInterpreter {
             if (t.type === 'INTEGER' || t.type === 'REAL' || t.type === 'STRING' || t.type === 'BOOLEAN') {
                 outputQueue.push(t.value);
             } else if (t.type === 'IDENTIFIER') {
-                 // Resolve variable
-                 const val = this.variables[t.value];
-                 if (val === undefined) throw new Error(`Unknown variable: ${t.value}`);
-                 outputQueue.push(val);
+                // Resolve variable
+                const val = this.variables[t.value];
+                if (val === undefined) throw new Error(`Unknown variable: ${t.value}`);
+                outputQueue.push(val);
             } else if (t.type === 'SYMBOL' || t.type === 'KEYWORD') { // Op
-                 if (t.value === '(') {
-                     opStack.push(t.value);
-                 } else if (t.value === ')') {
-                     while (opStack.length && opStack[opStack.length-1] !== '(') {
-                         outputQueue.push(opStack.pop());
-                     }
-                     opStack.pop(); // Pop (
-                 } else {
-                     // Operator
-                     const myPrec = precedence[t.value] || 0;
-                     while (opStack.length && (precedence[opStack[opStack.length-1]] || 0) >= myPrec) {
-                          outputQueue.push(opStack.pop());
-                     }
-                     opStack.push(t.value);
-                 }
+                if (t.value === '(') {
+                    opStack.push(t.value);
+                } else if (t.value === ')') {
+                    while (opStack.length && opStack[opStack.length - 1] !== '(') {
+                        outputQueue.push(opStack.pop());
+                    }
+                    opStack.pop(); // Pop (
+                } else {
+                    // Operator
+                    const myPrec = precedence[t.value] || 0;
+                    while (opStack.length && (precedence[opStack[opStack.length - 1]] || 0) >= myPrec) {
+                        outputQueue.push(opStack.pop());
+                    }
+                    opStack.push(t.value);
+                }
             }
         });
         while (opStack.length) outputQueue.push(opStack.pop());
@@ -448,7 +510,7 @@ export class PascalInterpreter {
                 } else {
                     const b = stack.pop();
                     const a = stack.pop();
-                    switch(token) {
+                    switch (token) {
                         case '+': stack.push(a + b); break;
                         case '-': stack.push(a - b); break;
                         case '*': stack.push(a * b); break;
