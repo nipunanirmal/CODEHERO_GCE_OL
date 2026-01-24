@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, RotateCcw, Trash2, Terminal, Code2, Save, SaveAll, Loader2 } from 'lucide-react';
-import { PascalInterpreter } from '../../utils/PascalInterpreter';
+import { PascalASTInterpreter } from '../../utils/PascalASTInterpreter';
 
 const INITIAL_CODE = `program MyFirstCode;
 var
@@ -32,7 +32,7 @@ export default function PascalIDE() {
     const [isWaitingInput, setIsWaitingInput] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const inputResolverRef = useRef(null);
-    const interpreterRef = useRef(new PascalInterpreter());
+    const interpreterRef = useRef(new PascalASTInterpreter());
 
     // Simple Syntax Highlighting (rendering overlay)
     const renderHighlightedCode = (rawCode) => {
@@ -65,7 +65,7 @@ export default function PascalIDE() {
         const interpreter = interpreterRef.current;
 
         try {
-            await interpreter.run(
+            await interpreter.runInteractive(
                 code,
                 (text) => {
                     setOutput(prev => {
@@ -241,7 +241,7 @@ export default function PascalIDE() {
             </div>
 
             {/* Terminal Side */}
-            <div className="w-[40%] bg-slate-950 flex flex-col shadow-2xl z-20">
+            <div className="w-[35%] bg-slate-950 flex flex-col shadow-2xl z-20">
                 {/* Toolbar */}
                 <div className="h-14 bg-slate-900 border-b border-slate-800 flex items-center px-4 justify-between">
                     <div className="flex items-center gap-2 text-slate-300 font-bold text-sm uppercase tracking-wider">

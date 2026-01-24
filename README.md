@@ -85,3 +85,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📄 License
 This project is open-source and available under the MIT License.
+
+## 🙏 Acknowledgements
+- Special thanks to [kanaka](https://github.com/kanaka) for the [pascal.js](https://github.com/kanaka/pascal.js) library, which served as the foundation for the Pascal grammar and parser generation used in this project.

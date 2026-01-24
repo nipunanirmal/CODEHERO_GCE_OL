@@ -64,15 +64,32 @@ export default function SequenceLevel({ levelData, onComplete, isCompleted, them
         return () => clearInterval(timer);
     }, [isPlaying, trace, playbackSpeed]);
 
-    const runCode = () => {
+    const runCode = async () => {
+        // Reset state before running
+        setIsPlaying(false);
+        setCurrentStep(0);
         setFeedback(null);
+        setTrace(null); // Clear previous trace to force UI refresh logic
+
         // Prepare input context from levelData if available, matching Flowchart logic
         // For now, we mock numeric inputs. Logic could be improved.
         const inputContext = { ...levelData.inputs };
-        const result = executePseudoCode(order, inputContext);
-        setTrace({ steps: result });
-        setCurrentStep(0);
-        setIsPlaying(true);
+
+        try {
+            console.log("Running Code with Order:", order.map(b => b.text)); // DEBUG
+            const result = await executePseudoCode(order, inputContext);
+            console.log("Execution Result:", result); // DEBUG
+
+            setTrace({ steps: result });
+            // Auto-play after a short delay to ensure UI renders "Ready" state
+            setTimeout(() => {
+                setCurrentStep(0);
+                setIsPlaying(true);
+            }, 100);
+        } catch (e) {
+            console.error(e);
+            setFeedback({ type: 'error', msg: 'Execution Failed' });
+        }
     };
 
     const handleReset = () => {
@@ -186,6 +203,9 @@ export default function SequenceLevel({ levelData, onComplete, isCompleted, them
                                 <button onClick={() => setIsPlaying(!isPlaying)} className="p-3 bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-lg active:scale-95 transition-all">
                                     {isPlaying ? <Pause size={20} className="fill-white" /> : <Play size={20} className="fill-white" />}
                                 </button>
+                                <button onClick={runCode} className="p-3 bg-indigo-500 hover:bg-indigo-600 rounded-lg shadow-lg active:scale-95 transition-all" title="Re-run Code">
+                                    <RotateCcw size={20} />
+                                </button>
                                 <button onClick={() => { setIsPlaying(false); setCurrentStep(s => Math.min(trace.steps.length - 1, s + 1)); }} disabled={currentStep >= trace.steps.length - 1} className="p-2 hover:bg-slate-700 rounded-lg disabled:opacity-30">
                                     <SkipForward size={18} className="fill-white" />
                                 </button>
@@ -227,7 +247,7 @@ export default function SequenceLevel({ levelData, onComplete, isCompleted, them
                                     {!trace && <span className="text-slate-600 italic">Click Run to see output...</span>}
                                     {trace && trace.steps[currentStep]?.logs.length === 0 && <span className="text-slate-700 italic">No output</span>}
                                     {trace && trace.steps[currentStep]?.logs.map((log, i) => (
-                                        <div key={i} className="text-emerald-400 border-l-2 border-emerald-900 pl-2 animate-in fade-in duration-300">
+                                        <div key={i} className={`border-l-2 pl-2 animate-in fade-in duration-300 ${log.startsWith('[ERROR]') ? 'text-rose-500 border-rose-900' : 'text-emerald-400 border-emerald-900'}`}>
                                             {log}
                                         </div>
                                     ))}
