@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, RotateCcw, Trash2, Terminal, Code2, Save, SaveAll, Loader2 } from 'lucide-react';
+import { Play, RotateCcw, Trash2, Terminal, Code2, Save, SaveAll, Loader2, Sparkles, AlertTriangle } from 'lucide-react';
+import { explainError, getAIConfig } from '../../utils/aiErrorExplainer';
 import { PascalASTInterpreter } from '../../utils/PascalASTInterpreter';
 
 const INITIAL_CODE = `program MyFirstCode;
@@ -31,6 +32,8 @@ export default function PascalIDE() {
     const [isRunning, setIsRunning] = useState(false);
     const [isWaitingInput, setIsWaitingInput] = useState(false);
     const [inputValue, setInputValue] = useState('');
+    const [aiExplanation, setAiExplanation] = useState(null); // { text, errorLine }
+    const [isExplainingError, setIsExplainingError] = useState(false);
     const inputResolverRef = useRef(null);
     const interpreterRef = useRef(new PascalASTInterpreter());
 
@@ -55,6 +58,23 @@ export default function PascalIDE() {
         });
 
         return <div dangerouslySetInnerHTML={{ __html: html }} />;
+    };
+
+    const handleExplainError = async (errorLine) => {
+        if (!getAIConfig()) {
+            setAiExplanation({ text: '⚙️ AI provider configured නෑ. /admin ගිහිල්ලා configure කරන්න.', errorLine });
+            return;
+        }
+        setIsExplainingError(true);
+        setAiExplanation(null);
+        try {
+            const explanation = await explainError(errorLine, code);
+            setAiExplanation({ text: explanation, errorLine });
+        } catch (err) {
+            setAiExplanation({ text: `⚠️ AI error: ${err.message}`, errorLine });
+        } finally {
+            setIsExplainingError(false);
+        }
     };
 
     const handleRun = async () => {
@@ -100,6 +120,7 @@ export default function PascalIDE() {
         } finally {
             setIsRunning(false);
             setIsWaitingInput(false);
+            setAiExplanation(null); // Clear old explanation on re-run
         }
     };
 
@@ -117,11 +138,36 @@ export default function PascalIDE() {
     const handleKeyDown = (e) => {
         if (e.key === 'Tab') {
             e.preventDefault();
-            const start = e.target.selectionStart;
-            const end = e.target.selectionEnd;
-            const spaces = '    '; // 4 spaces indentation
+            document.execCommand('insertText', false, '    '); // 4 spaces
 
-            document.execCommand('insertText', false, spaces);
+        } else if (e.key === 'Backspace') {
+            const textarea = e.target;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+
+            // Only smart-backspace when no text is selected
+            if (start === end && start > 0) {
+                const value = textarea.value;
+                const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                const beforeCursor = value.substring(lineStart, start);
+
+                // If everything from line-start to cursor is spaces → smart delete
+                if (/^ +$/.test(beforeCursor) && beforeCursor.length > 0) {
+                    e.preventDefault();
+                    // How many spaces to remove to reach the previous tab stop (1..4)
+                    const col = beforeCursor.length;
+                    const removeCount = ((col - 1) % 4) + 1;
+                    const newCode = value.substring(0, start - removeCount) + value.substring(end);
+                    setCode(newCode);
+                    setTimeout(() => {
+                        if (textareaRef.current) {
+                            textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start - removeCount;
+                            syncScroll();
+                        }
+                    }, 0);
+                }
+            }
+
         } else if (e.key === 'Enter') {
             e.preventDefault();
 
@@ -279,9 +325,45 @@ export default function PascalIDE() {
                 <div className="flex-1 p-4 font-mono text-sm overflow-auto text-slate-300 relative" onClick={() => document.getElementById('terminal-input')?.focus()}>
                     {output.map((line, i) => (
                         <div key={i} className="whitespace-pre-wrap break-all mb-1 font-medium">
-                            {line.startsWith('[ERROR]') ? <span className="text-rose-500">{line}</span> : line}
+                            {line.startsWith('[ERROR]') ? (
+                                <div className="space-y-1.5">
+                                    <div className="flex items-start gap-2 flex-wrap">
+                                        <span className="text-rose-500 flex-1 min-w-0">{line}</span>
+                                        <button
+                                            onClick={() => handleExplainError(line)}
+                                            disabled={isExplainingError}
+                                            className="flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg bg-violet-500/20 text-violet-300 hover:bg-violet-500/30 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                                            title="AI eka ita reason eka kiyannda?"
+                                        >
+                                            {isExplainingError ? (
+                                                <span className="w-3 h-3 border border-violet-400 border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <Sparkles size={12} />
+                                            )}
+                                            {isExplainingError ? 'Thinking...' : 'Explain'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : line}
                         </div>
                     ))}
+
+                    {/* AI Explanation Panel */}
+                    {aiExplanation && (
+                        <div className="mt-3 p-4 bg-violet-500/10 border border-violet-500/30 rounded-xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="flex items-center gap-2 text-violet-400 text-xs font-bold mb-2">
+                                <Sparkles size={12} />
+                                AI Explanation
+                            </div>
+                            <p className="text-violet-100/90 text-sm leading-relaxed">{aiExplanation.text}</p>
+                            <button
+                                onClick={() => setAiExplanation(null)}
+                                className="mt-2 text-xs text-violet-500 hover:text-violet-300 transition-colors"
+                            >
+                                × Close
+                            </button>
+                        </div>
+                    )}
 
                     {/* Inline Input Field */}
                     {isWaitingInput && (

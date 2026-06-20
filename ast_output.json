@@ -1,0 +1,92 @@
+{
+  "node": "program",
+  "id": "PASSFAIL",
+  "fparams": [
+    "INPUT",
+    "OUTPUT"
+  ],
+  "block": {
+    "node": "block",
+    "decls": [
+      {
+        "node": "var_decl",
+        "id": "MARKS",
+        "type": {
+          "node": "type",
+          "name": "ARRAY",
+          "type": {
+            "node": "type",
+            "name": "INTEGER"
+          },
+          "index": {
+            "node": "type",
+            "start": {
+              "node": "constant",
+              "stype": "INTEGER",
+              "val": 0
+            },
+            "end": {
+              "node": "constant",
+              "stype": "INTEGER",
+              "val": 1
+            },
+            "name": "SUBRANGE"
+          }
+        },
+        "lineno": 2
+      }
+    ],
+    "stmts": [
+      {
+        "node": "stmt_assign",
+        "lvalue": {
+          "node": "expr_array_deref",
+          "lvalue": {
+            "node": "variable",
+            "id": "MARKS"
+          },
+          "expr": {
+            "node": "integer",
+            "type": {
+              "node": "type",
+              "name": "INTEGER"
+            },
+            "val": 0
+          }
+        },
+        "expr": {
+          "node": "integer",
+          "type": {
+            "node": "type",
+            "name": "INTEGER"
+          },
+          "val": 40
+        },
+        "lineno": 4
+      },
+      {
+        "node": "stmt_call",
+        "id": "WRITELN",
+        "call_params": [
+          {
+            "node": "expr_array_deref",
+            "lvalue": {
+              "node": "variable",
+              "id": "MARKS"
+            },
+            "expr": {
+              "node": "integer",
+              "type": {
+                "node": "type",
+                "name": "INTEGER"
+              },
+              "val": 0
+            }
+          }
+        ],
+        "lineno": 5
+      }
+    ],
+    "uses": []
+  }
+}

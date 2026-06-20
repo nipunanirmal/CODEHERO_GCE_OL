@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { Gamepad2, Code, Code2, FileText, CheckCircle, ChevronLeft, ChevronRight, ChevronDown, Trophy, Lock, PlayCircle, CheckCircle2 } from 'lucide-react';
+import { Gamepad2, Code, Code2, FileText, CheckCircle, ChevronLeft, ChevronRight, ChevronDown, Trophy, Lock, PlayCircle, CheckCircle2, Settings } from 'lucide-react';
 
 import FlowchartGame from './components/FlowchartGame';
 import PseudoCodeGame from './components/PseudoCodeGame';
@@ -9,6 +9,7 @@ import { pseudoLevels } from './data/pseudoLevels';
 import { pascalLevels } from './data/pascalLevels';
 import PascalGame from './components/PascalGame';
 import PascalIDE from './components/PascalIDE/PascalIDE';
+import AdminPage from './components/AdminPage';
 
 // Placeholders for modules
 const Home = () => (
@@ -68,10 +69,10 @@ const ModuleCard = ({ to, title, desc, color, icon }) => (
 
 
 
-// Helper to load Set from localStorage
+// Helper to load Set from sessionStorage
 const loadSet = (key) => {
   try {
-    const stored = localStorage.getItem(key);
+    const stored = sessionStorage.getItem(key);
     return new Set(stored ? JSON.parse(stored) : []);
   } catch (e) {
     console.error("Failed to load completed levels", e);
@@ -98,17 +99,17 @@ function AppContent() {
   const [pascalLevelIndex, setPascalLevelIndex] = useState(0);
   const [completedPascalLevels, setCompletedPascalLevels] = useState(() => loadSet('completed_pascal'));
 
-  // --- PERSISTENCE EFFECT ---
+  // --- PERSISTENCE EFFECT (sessionStorage — resets on tab/browser close) ---
   React.useEffect(() => {
-    localStorage.setItem('completed_flowcharts', JSON.stringify([...completedLevels]));
+    sessionStorage.setItem('completed_flowcharts', JSON.stringify([...completedLevels]));
   }, [completedLevels]);
 
   React.useEffect(() => {
-    localStorage.setItem('completed_pseudocode', JSON.stringify([...completedPseudoLevels]));
+    sessionStorage.setItem('completed_pseudocode', JSON.stringify([...completedPseudoLevels]));
   }, [completedPseudoLevels]);
 
   React.useEffect(() => {
-    localStorage.setItem('completed_pascal', JSON.stringify([...completedPascalLevels]));
+    sessionStorage.setItem('completed_pascal', JSON.stringify([...completedPascalLevels]));
   }, [completedPascalLevels]);
 
   // --- NAVIGATION STATE ---
@@ -355,7 +356,10 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <AppContent />
+      <Routes>
+        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/*" element={<AppContent />} />
+      </Routes>
     </Router>
   );
 }

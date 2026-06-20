@@ -277,6 +277,21 @@ export class PascalASTInterpreter {
         }
     }
 
+    // Known valid Pascal types
+    static VALID_TYPES = new Set(['INTEGER', 'REAL', 'STRING', 'BOOLEAN', 'CHAR', 'BYTE', 'WORD', 'LONGINT', 'SHORTINT', 'ARRAY']);
+
+    // Known valid Pascal built-in procedures
+    static VALID_PROCS = new Set(['WRITELN', 'WRITE', 'READLN', 'READ']);
+
+    // Common typo suggestions: wrong -> correct
+    static PROC_SUGGESTIONS = {
+        'WRITLEN': 'writeln', 'WRTELN': 'writeln', 'WRTIELN': 'writeln', 'WRTILN': 'writeln',
+        'WRITELN1': 'writeln', 'WRTLN': 'writeln', 'WRLN': 'writeln',
+        'RDLN': 'readln', 'READIN': 'readln', 'RAEDLN': 'readln', 'READL': 'readln',
+        'WRTE': 'write', 'WRIT': 'write',
+        'RED': 'read', 'RAED': 'read',
+    };
+
     async visitDeclarations(decls) {
         if (!decls) return;
         for (const decl of decls) {
@@ -286,11 +301,22 @@ export class PascalASTInterpreter {
                 const name = decl.id.toLowerCase(); // Case-insensitive vars
                 this.variables[name] = 0;  // Default value
 
-                // Store declared type
+                // Store declared type — validate it!
                 if (decl.type && decl.type.name) {
-                    this.variableTypes[name] = decl.type.name.toUpperCase();
-                    if (decl.type.name.toUpperCase() === 'STRING') {
-                        this.variables[name] = "";
+                    const typeName = decl.type.name.toUpperCase();
+                    if (!PascalASTInterpreter.VALID_TYPES.has(typeName)) {
+                        throw new Error(`Unknown type '${decl.type.name}' for variable '${decl.id}'. Did you mean 'integer', 'string', 'real', or 'boolean'?`);
+                    }
+                    if (typeName === 'ARRAY') {
+                        // e.g. decl.type.type.name might be 'INTEGER'
+                        const baseType = decl.type.type ? decl.type.type.name.toUpperCase() : 'UNKNOWN';
+                        this.variableTypes[name] = `ARRAY_${baseType}`;
+                        this.variables[name] = [];
+                    } else {
+                        this.variableTypes[name] = typeName;
+                        if (typeName === 'STRING') {
+                            this.variables[name] = "";
+                        }
                     }
                 }
             } else if (decl.node === 'const_decl') {
@@ -315,12 +341,34 @@ export class PascalASTInterpreter {
     }
 
     async executeAssign(node) {
-        const varName = node.lvalue.id || node.lvalue; // lvalue can be object or string in some parsers? Check AST.
-        // In AST dump: lvalue was { node: 'variable', id: 'X' }
-        const target = (node.lvalue.node === 'variable' ? node.lvalue.id : node.lvalue).toLowerCase();
+        let isArray = false;
+        let target;
+        let index;
+        let origName;
+
+        if (node.lvalue.node === 'expr_array_deref') {
+            isArray = true;
+            target = node.lvalue.lvalue.id.toLowerCase();
+            index = await this.evaluate(node.lvalue.expr);
+            origName = node.lvalue.lvalue.id;
+        } else {
+            target = (node.lvalue.node === 'variable' ? node.lvalue.id : node.lvalue).toLowerCase();
+            origName = node.lvalue.id || target;
+        }
+
+        // Check if variable was declared
+        if (!(target in this.variables)) {
+            const suggestion = this._suggestVariable(target);
+            const hint = suggestion ? ` Did you mean '${suggestion}'?` : ' Declare it in the var section.';
+            throw new Error(`Undefined variable '${origName}'.${hint}`);
+        }
 
         const val = await this.evaluate(node.expr);
-        this.variables[target] = val;
+        if (isArray) {
+            this.variables[target][index] = val;
+        } else {
+            this.variables[target] = val;
+        }
     }
 
     async executeCall(node) {
@@ -338,27 +386,55 @@ export class PascalASTInterpreter {
             // Param should be variable
             if (node.call_params && node.call_params.length > 0) {
                 const targetNode = node.call_params[0];
-                if (targetNode.node === 'variable') {
-                    const varName = targetNode.id.toLowerCase();
+                let isArray = false;
+                let varName;
+                let index;
+                let displayId;
+
+                if (targetNode.node === 'expr_array_deref') {
+                    isArray = true;
+                    varName = targetNode.lvalue.id.toLowerCase();
+                    index = await this.evaluate(targetNode.expr);
+                    displayId = `${targetNode.lvalue.id}[${index}]`;
+                } else if (targetNode.node === 'variable') {
+                    varName = targetNode.id.toLowerCase();
+                    displayId = targetNode.id;
+                }
+
+                if (varName) {
+                    // Check if variable is declared
+                    if (!(varName in this.variables)) {
+                        const suggestion = this._suggestVariable(varName);
+                        const hint = suggestion ? ` Did you mean '${suggestion}'?` : ' Declare it in the var section.';
+                        throw new Error(`Undefined variable '${displayId}'.${hint}`);
+                    }
+
                     const declaredType = this.variableTypes[varName] || 'UNKNOWN';
+                    // Extract base type if it's an array
+                    const baseType = declaredType.startsWith('ARRAY_') ? declaredType.split('_')[1] : declaredType;
 
                     let inputVal = await this.requestInput();
 
                     // Validate Type
-                    if (declaredType === 'INTEGER') {
+                    if (baseType === 'INTEGER') {
                         // Check if numeric and integer
                         if (!/^-?\d+$/.test(String(inputVal).trim())) {
-                            throw new Error(`Invalid input for INTEGER variable '${targetNode.id}'. Expected a whole number, got '${inputVal}'.`);
+                            throw new Error(`Invalid input for INTEGER variable '${displayId}'. Expected a whole number, got '${inputVal}'.`);
                         }
                         inputVal = parseInt(inputVal, 10);
-                    } else if (declaredType === 'REAL') {
+                    } else if (baseType === 'REAL') {
                         if (isNaN(parseFloat(inputVal))) {
-                            throw new Error(`Invalid input for REAL variable '${targetNode.id}'. Expected a number, got '${inputVal}'.`);
+                            throw new Error(`Invalid input for REAL variable '${displayId}'. Expected a number, got '${inputVal}'.`);
                         }
                         inputVal = parseFloat(inputVal);
                     }
 
-                    this.variables[varName] = inputVal;
+                    if (isArray) {
+                        this.variables[varName][index] = inputVal;
+                    } else {
+                        this.variables[varName] = inputVal;
+                    }
+
                     // Echo output if needed? 
                     // Usually console echoes input. IDE might handle it, but for consistency:
                     this.logOutput(`${inputVal}\n`);
@@ -368,8 +444,10 @@ export class PascalASTInterpreter {
                 await this.requestInput();
             }
         } else {
-            // Unknown procedure? Or custom one?
-            // For now, ignore.
+            // Unknown procedure — throw a helpful error
+            const suggestion = PascalASTInterpreter.PROC_SUGGESTIONS[id];
+            const hint = suggestion ? ` Did you mean '${suggestion}'?` : ' Check your spelling.';
+            throw new Error(`Unknown procedure '${node.id}'.${hint}`);
         }
     }
 
@@ -470,8 +548,25 @@ export class PascalASTInterpreter {
                 return node.val;
             case 'string':
                 return node.val;
-            case 'variable':
-                return this.variables[node.id.toLowerCase()] ?? 0;
+            case 'expr_array_deref': {
+                const arrName = node.lvalue.id.toLowerCase();
+                if (!(arrName in this.variables)) {
+                    const suggestion = this._suggestVariable(arrName);
+                    const hint = suggestion ? ` Did you mean '${suggestion}'?` : ' Declare it in the var section.';
+                    throw new Error(`Undefined variable '${node.lvalue.id}'.${hint}`);
+                }
+                const idx = await this.evaluate(node.expr);
+                return this.variables[arrName][idx] || 0;
+            }
+            case 'variable': {
+                const varKey = node.id.toLowerCase();
+                if (!(varKey in this.variables)) {
+                    const suggestion = this._suggestVariable(varKey);
+                    const hint = suggestion ? ` Did you mean '${suggestion}'?` : ' Declare it in the var section.';
+                    throw new Error(`Undefined variable '${node.id}'.${hint}`);
+                }
+                return this.variables[varKey];
+            }
 
             case 'expr_call':
                 // Function call in expression
@@ -586,6 +681,34 @@ export class PascalASTInterpreter {
             variables: currentVars,
             error: error.message
         });
+    }
+
+    // Suggest a declared variable name similar to the given name (Levenshtein distance <= 2)
+    _suggestVariable(name) {
+        const candidates = Object.keys(this.variables);
+        let best = null;
+        let bestDist = 3; // only suggest if within 2 edits
+        for (const candidate of candidates) {
+            const d = this._levenshtein(name, candidate);
+            if (d < bestDist) {
+                bestDist = d;
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
+    _levenshtein(a, b) {
+        const m = a.length, n = b.length;
+        const dp = Array.from({ length: m + 1 }, (_, i) =>
+            Array.from({ length: n + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0)
+        );
+        for (let i = 1; i <= m; i++)
+            for (let j = 1; j <= n; j++)
+                dp[i][j] = a[i - 1] === b[j - 1]
+                    ? dp[i - 1][j - 1]
+                    : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+        return dp[m][n];
     }
 
 }

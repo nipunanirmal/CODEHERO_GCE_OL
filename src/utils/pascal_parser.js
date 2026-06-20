@@ -455,7 +455,6 @@ var pascal_parser = (function () {
                 vstack.length = vstack.length - n;
                 lstack.length = lstack.length - n;
             }
-            _token_stack:
             var lex = function () {
                 var token;
                 token = lexer.lex() || EOF;
