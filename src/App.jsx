@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { Gamepad2, Code, Code2, FileText, CheckCircle, ChevronLeft, ChevronRight, ChevronDown, Trophy, Lock, PlayCircle, CheckCircle2, Settings } from 'lucide-react';
+import { Gamepad2, Code, Code2, FileText, CheckCircle, ChevronLeft, ChevronRight, ChevronDown, Trophy, Lock, PlayCircle, CheckCircle2, Settings, Globe, Palette } from 'lucide-react';
 
 import FlowchartGame from './components/FlowchartGame';
 import PseudoCodeGame from './components/PseudoCodeGame';
 import { levels } from './data/levels';
 import { pseudoLevels } from './data/pseudoLevels';
 import { pascalLevels } from './data/pascalLevels';
+import { htmlLevels } from './data/htmlLevels';
 import PascalGame from './components/PascalGame';
 import PascalIDE from './components/PascalIDE/PascalIDE';
+import HTMLGame from './components/HTMLGame';
+import HTMLIDE from './components/HTMLIDE/HTMLIDE';
+import VisualBuilder from './components/HTMLIDE/VisualBuilder';
+import CraftVisualBuilder from './components/HTMLIDE/CraftVisualBuilder';
 import AdminPage from './components/AdminPage';
 
 // Placeholders for modules
@@ -25,7 +30,7 @@ const Home = () => (
           G.C.E O/L ICT 11 ශ්‍රේණියේ 1 වන පාඩම ඉතාමත් සරලව සහ විනෝදජනක ලෙස ඉගෙන ගැනීමට අප හා එක්වන්න. පහතින් ඇති පාඩම් මාලාවෙන් එකක් තෝරා ගන්න.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <ModuleCard
             to="/flowcharts"
             title="ගැලීම් සටහන්"
@@ -46,6 +51,13 @@ const Home = () => (
             desc="Pascal Language"
             color="bg-amber-500"
             icon={<Code size={32} />}
+          />
+          <ModuleCard
+            to="/html"
+            title="HTML වෙබ්"
+            desc="Web Development"
+            color="bg-purple-500"
+            icon={<Globe size={32} />}
           />
         </div>
       </div>
@@ -99,6 +111,10 @@ function AppContent() {
   const [pascalLevelIndex, setPascalLevelIndex] = useState(0);
   const [completedPascalLevels, setCompletedPascalLevels] = useState(() => loadSet('completed_pascal'));
 
+  // HTML
+  const [htmlLevelIndex, setHtmlLevelIndex] = useState(0);
+  const [completedHtmlLevels, setCompletedHtmlLevels] = useState(() => loadSet('completed_html'));
+
   // --- PERSISTENCE EFFECT (sessionStorage — resets on tab/browser close) ---
   React.useEffect(() => {
     sessionStorage.setItem('completed_flowcharts', JSON.stringify([...completedLevels]));
@@ -111,6 +127,10 @@ function AppContent() {
   React.useEffect(() => {
     sessionStorage.setItem('completed_pascal', JSON.stringify([...completedPascalLevels]));
   }, [completedPascalLevels]);
+
+  React.useEffect(() => {
+    sessionStorage.setItem('completed_html', JSON.stringify([...completedHtmlLevels]));
+  }, [completedHtmlLevels]);
 
   // --- NAVIGATION STATE ---
   const navigate = useNavigate();
@@ -138,6 +158,11 @@ function AppContent() {
   const handlePascalLevelSelect = (index) => {
     setPascalLevelIndex(index);
     navigate('/pascal');
+  };
+
+  const handleHtmlLevelSelect = (index) => {
+    setHtmlLevelIndex(index);
+    navigate('/html');
   };
 
   const toggleSection = (section) => {
@@ -299,7 +324,48 @@ function AppContent() {
             )}
           </div>
 
-          <NavItem to="/ide" icon={<Code2 size={22} />} label="Pascal IDE (New)" isOpen={isSidebarOpen} isActive={location.pathname === '/ide'} />
+          {/* HTML */}
+          <div>
+            <button
+              onClick={() => toggleSection('html')}
+              className={`w-full flex items-center ${isSidebarOpen ? 'justify-between px-6' : 'justify-center px-0'} py-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white transition-all`}
+            >
+              <div className="flex items-center gap-4">
+                <Globe size={22} className={openSection === 'html' ? 'text-purple-400' : ''} />
+                {isSidebarOpen && <span className="font-bold tracking-tight text-lg">HTML වෙබ්</span>}
+              </div>
+              {isSidebarOpen && (openSection === 'html' ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+            </button>
+
+            {/* LEVEL LIST (Nested) */}
+            {isSidebarOpen && openSection === 'html' && (
+              <div className="ml-6 pl-4 border-l border-slate-800 space-y-1 my-2 animate-in slide-in-from-top-2 duration-200">
+                {htmlLevels.map((level, idx) => {
+                  const isCompleted = completedHtmlLevels.has(level.id);
+                  const isActive = location.pathname === '/html' && idx === htmlLevelIndex;
+
+                  return (
+                    <button
+                      key={level.id}
+                      onClick={() => handleHtmlLevelSelect(idx)}
+                      className={`w-full text-left p-2 rounded-lg transition-all flex items-baseline gap-3 relative group
+                                                ${isActive ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300'}
+                                            `}
+                    >
+                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isCompleted ? 'bg-emerald-500' : (isActive ? 'bg-purple-500' : 'bg-slate-700')}`} />
+                      <span className={`text-xs font-bold truncate ${isActive ? 'text-white' : ''}`}>{level.title}</span>
+                      {isCompleted && <CheckCircle2 size={10} className="text-emerald-500 ml-auto" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <NavItem to="/html-ide" icon={<Code2 size={22} />} label="HTML IDE" isOpen={isSidebarOpen} isActive={location.pathname === '/html-ide'} />
+          {/* <NavItem to="/visual-builder" icon={<Palette size={22} />} label="Visual Builder" isOpen={isSidebarOpen} isActive={location.pathname === '/visual-builder'} /> */}
+          {/* <NavItem to="/craft-builder" icon={<Palette size={22} />} label="Craft Builder" isOpen={isSidebarOpen} isActive={location.pathname === '/craft-builder'} /> */}
+          <NavItem to="/ide" icon={<Code2 size={22} />} label="Pascal IDE" isOpen={isSidebarOpen} isActive={location.pathname === '/ide'} />
         </nav>
       </div>
 
@@ -347,6 +413,22 @@ function AppContent() {
             }
           />
           <Route path="/ide" element={<PascalIDE />} />
+          <Route path="/html-ide" element={<HTMLIDE />} />
+          {/* <Route path="/visual-builder" element={<VisualBuilder />} /> */}
+          {/* <Route path="/craft-builder" element={<CraftVisualBuilder />} /> */}
+          <Route
+            path="/html"
+            element={
+              <HTMLGame
+                xp={xp}
+                addXP={addXP}
+                levelIndex={htmlLevelIndex}
+                setLevelIndex={setHtmlLevelIndex}
+                completedLevels={completedHtmlLevels}
+                setCompletedLevels={setCompletedHtmlLevels}
+              />
+            }
+          />
         </Routes>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Key, Cpu, CheckCircle2, AlertTriangle, Eye, EyeOff, Zap, Server, Lock, LogIn, TestTube2, Save } from 'lucide-react';
-import { getAIConfig, saveAIConfig } from '../utils/aiErrorExplainer';
+import { getAIConfig, saveAIConfig, explainError } from '../utils/aiErrorExplainer';
 
 // ⚠️ Hardcoded admin password — change this before deploying to VPS
 const ADMIN_PASSWORD = 'codehero2025';
@@ -112,8 +112,6 @@ function AdminPanel() {
         setTesting(true);
         setTestResult(null);
         try {
-            // Dynamic import to avoid circular deps
-            const { explainError } = await import('../utils/aiErrorExplainer');
             // Temporarily save current form state for test
             saveAIConfig(config);
             const result = await explainError('[ERROR]: Division by zero', 'begin\n  x := 10 div 0;\nend.');
