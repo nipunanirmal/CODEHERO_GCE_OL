@@ -17,7 +17,11 @@ import {
   Plus,
   Trash2,
   Settings,
+  Play,
+  Library,
 } from 'lucide-react';
+import { registerMediaFiles, resolveMediaPathsInHtml, getMediaKindFromType } from '../../utils/mediaAssets';
+import MediaLibrary from './MediaLibrary';
 
 /* ──────────────────────────────────────────────
    Craft Components
@@ -173,6 +177,93 @@ ImageComponent.craft = {
 
 /* ────────────────────────────────────────────── */
 
+const VideoComponent = ({ src, width, borderRadius }) => {
+  const {
+    connectors: { connect, drag },
+    isDragging,
+  } = useNode();
+
+  return (
+    <div
+      ref={(ref) => connect(drag(ref))}
+      style={{
+        border: '1px dashed #d1d5db',
+        padding: '4px',
+        borderRadius: '4px',
+        opacity: isDragging ? 0.5 : 1,
+        cursor: 'move',
+        display: 'inline-block',
+        width: `${width}%`,
+      }}
+    >
+      <video controls style={{ width: '100%', borderRadius: `${borderRadius}px`, display: 'block' }}>
+        <source src={src} />
+        ඔබගේ බ්‍රව්සරය video ටැගය සහාය නොදක්වයි.
+      </video>
+    </div>
+  );
+};
+
+VideoComponent.craft = {
+  displayName: 'Video',
+  props: {
+    src: 'https://www.w3schools.com/html/mov_bbb.mp4',
+    width: 100,
+    borderRadius: 4,
+  },
+  rules: {
+    canDrag: () => true,
+    canDrop: () => true,
+    canMoveIn: () => false,
+    canMoveOut: () => true,
+  },
+};
+
+/* ────────────────────────────────────────────── */
+
+const AudioComponent = ({ src, width }) => {
+  const {
+    connectors: { connect, drag },
+    isDragging,
+  } = useNode();
+
+  return (
+    <div
+      ref={(ref) => connect(drag(ref))}
+      style={{
+        border: '1px dashed #d1d5db',
+        padding: '8px',
+        borderRadius: '4px',
+        opacity: isDragging ? 0.5 : 1,
+        cursor: 'move',
+        display: 'inline-block',
+        width: `${width}%`,
+      }}
+    >
+      <audio controls style={{ width: '100%' }}>
+        <source src={src} />
+        ඔබගේ බ්‍රව්සරය audio ටැගය සහාය නොදක්වයි.
+      </audio>
+    </div>
+  );
+};
+
+AudioComponent.craft = {
+  displayName: 'Audio',
+  props: {
+    src: 'https://www.w3schools.com/html/horse.mp3',
+    width: 100,
+  },
+  rules: {
+    canDrag: () => true,
+    canDrop: () => true,
+    canMoveIn: () => false,
+    canMoveOut: () => true,
+  },
+};
+
+/* ────────────────────────────────────────────── */
+
 const ButtonComponent = ({ text, backgroundColor, textColor, borderRadius, padding }) => {
   const {
     connectors: { connect, drag },
@@ -275,6 +366,8 @@ const Sidebar = () => {
     { type: TextComponent, icon: <Type className="w-4 h-4" />, label: 'පෙළ' },
     { type: HeadingComponent, icon: <Type className="w-4 h-4" />, label: 'මාතෘකාව' },
     { type: ImageComponent, icon: <ImageIcon className="w-4 h-4" />, label: 'රූපය' },
+    { type: VideoComponent, icon: <Play className="w-4 h-4" />, label: 'වීඩියෝ' },
+    { type: AudioComponent, icon: <Eye className="w-4 h-4" />, label: 'ශ්‍රව්‍ය' },
     { type: ButtonComponent, icon: <MousePointer className="w-4 h-4" />, label: 'බොත්තම' },
     { type: ContainerComponent, icon: <Square className="w-4 h-4" />, label: 'කන්ටේනරය' },
   ];
@@ -361,6 +454,18 @@ const PropertyPanel = () => {
     actions.setProp(id, (p) => (p[key] = value));
   };
 
+  const handleMediaUpload = async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+
+    if (!files.length) return;
+
+    const addedAssets = await registerMediaFiles(files);
+    if (addedAssets.length) {
+      setProp('src', addedAssets[0].path);
+    }
+  };
+
   const renderFields = () => {
     const name = selected.name;
     switch (name) {
@@ -427,6 +532,9 @@ const PropertyPanel = () => {
             <PropertyField label="රූප URL">
               <input type="text" value={props.src || ''} onChange={(e) => setProp('src', e.target.value)} className={inputClass} />
             </PropertyField>
+            <PropertyField label="රූප ගොනුව උඩුගත කරන්න">
+              <input type="file" accept="image/*" onChange={handleMediaUpload} className="block w-full text-sm" />
+            </PropertyField>
             <PropertyField label="Alt පෙළ">
               <input type="text" value={props.alt || ''} onChange={(e) => setProp('alt', e.target.value)} className={inputClass} />
             </PropertyField>
@@ -435,6 +543,37 @@ const PropertyPanel = () => {
             </PropertyField>
             <PropertyField label="මැදියාව (px)">
               <input type="number" value={props.borderRadius || 4} onChange={(e) => setProp('borderRadius', parseInt(e.target.value) || 0)} className={inputClass} />
+            </PropertyField>
+          </>
+        );
+      case 'VideoComponent':
+        return (
+          <>
+            <PropertyField label="වීඩියෝ URL">
+              <input type="text" value={props.src || ''} onChange={(e) => setProp('src', e.target.value)} className={inputClass} />
+            </PropertyField>
+            <PropertyField label="වීඩියෝ ගොනුව උඩුගත කරන්න">
+              <input type="file" accept="video/*" onChange={handleMediaUpload} className="block w-full text-sm" />
+            </PropertyField>
+            <PropertyField label="පළල (%)">
+              <input type="number" value={props.width || 100} onChange={(e) => setProp('width', parseInt(e.target.value) || 100)} className={inputClass} />
+            </PropertyField>
+            <PropertyField label="මැදියාව (px)">
+              <input type="number" value={props.borderRadius || 4} onChange={(e) => setProp('borderRadius', parseInt(e.target.value) || 0)} className={inputClass} />
+            </PropertyField>
+          </>
+        );
+      case 'AudioComponent':
+        return (
+          <>
+            <PropertyField label="ශ්‍රව්‍ය URL">
+              <input type="text" value={props.src || ''} onChange={(e) => setProp('src', e.target.value)} className={inputClass} />
+            </PropertyField>
+            <PropertyField label="ශ්‍රව්‍ය ගොනුව උඩුගත කරන්න">
+              <input type="file" accept="audio/*" onChange={handleMediaUpload} className="block w-full text-sm" />
+            </PropertyField>
+            <PropertyField label="පළල (%)">
+              <input type="number" value={props.width || 100} onChange={(e) => setProp('width', parseInt(e.target.value) || 100)} className={inputClass} />
             </PropertyField>
           </>
         );
@@ -524,6 +663,16 @@ const generateHTMLFromEditor = (query) => {
         return `      <h${props.level} style="color: ${props.color}; text-align: ${props.textAlign};">${props.text}</h${props.level}>`;
       case 'ImageComponent':
         return `      <img src="${props.src}" alt="${props.alt}" style="width: ${props.width}%; border-radius: ${props.borderRadius}px;">`;
+      case 'VideoComponent':
+        return `      <video controls style="width: ${props.width}%; border-radius: ${props.borderRadius}px;">
+        <source src="${props.src}">
+        ඔබගේ බ්‍රව්සරය video ටැගය සහාය නොදක්වයි.
+      </video>`;
+      case 'AudioComponent':
+        return `      <audio controls style="width: ${props.width}%">
+        <source src="${props.src}">
+        ඔබගේ බ්‍රව්සරය audio ටැගය සහාය නොදක්වයි.
+      </audio>`;
       case 'ButtonComponent':
         return `      <button style="background-color: ${props.backgroundColor}; color: ${props.textColor}; border: none; border-radius: ${props.borderRadius}px; padding: ${props.padding}px ${props.padding * 2}px; cursor: pointer;">${props.text}</button>`;
       case 'ContainerComponent':
@@ -561,42 +710,75 @@ ${bodyContent}
    ────────────────────────────────────────────── */
 
 const Toolbar = ({ onGenerate, onTogglePreview, showPreview }) => {
-  const { selected, actions } = useEditor((state) => ({
+  const { selected, actions, query } = useEditor((state) => ({
     selected: state.events.selected,
   }));
+  const [showMediaLibrary, setShowMediaLibrary] = useState(false);
+
+  const addMediaComponent = (asset) => {
+    const rootNodes = query.getNodes();
+    const rootNode = Object.values(rootNodes).find((n) => n.data && n.data.name === 'ROOT');
+    const parentId = rootNode ? rootNode.id : null;
+    if (!parentId) return;
+
+    const kind = getMediaKindFromType(asset.type);
+    let componentType = ImageComponent;
+    if (kind === 'video') componentType = VideoComponent;
+    if (kind === 'audio') componentType = AudioComponent;
+
+    const props = { ...componentType.craft.props, src: asset.path };
+    const reactElement = React.createElement(componentType, props);
+    const nodeTree = query.parseReactElement(reactElement).toNodeTree();
+    actions.addNodeTree(nodeTree, parentId);
+  };
 
   return (
-    <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
-      <div>
-        <h1 className="text-xl font-bold text-slate-800">Craft.js Visual Builder</h1>
-        <p className="text-sm text-slate-600">අංග ඇදගෙන වෙබ් පිටුව ගොඩනඟන්න</p>
-      </div>
-      <div className="flex items-center gap-2">
-        {selected && (
+    <>
+      <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">Craft.js Visual Builder</h1>
+          <p className="text-sm text-slate-600">අංග ඇදගෙන වෙබ් පිටුව ගොඩනඟන්න</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {selected && (
+            <button
+              onClick={() => actions.delete(selected)}
+              className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center gap-1.5 transition-colors text-sm"
+            >
+              <Trash2 className="w-4 h-4" />
+              මකන්න
+            </button>
+          )}
           <button
-            onClick={() => actions.delete(selected)}
-            className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center gap-1.5 transition-colors text-sm"
+            onClick={() => setShowMediaLibrary(true)}
+            className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg flex items-center gap-2 transition-colors text-sm"
           >
-            <Trash2 className="w-4 h-4" />
-            මකන්න
+            <Library className="w-4 h-4" />
+            Media Library
           </button>
-        )}
-        <button
-          onClick={onGenerate}
-          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg flex items-center gap-2 transition-colors text-sm"
-        >
-          <Code className="w-4 h-4" />
-          HTML කේතය
-        </button>
-        <button
-          onClick={onTogglePreview}
-          className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg flex items-center gap-2 transition-colors text-sm"
-        >
-          <Eye className="w-4 h-4" />
-          {showPreview ? 'සංස්කාරකය' : 'පෙරදසුන'}
-        </button>
+          <button
+            onClick={onGenerate}
+            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg flex items-center gap-2 transition-colors text-sm"
+          >
+            <Code className="w-4 h-4" />
+            HTML කේතය
+          </button>
+          <button
+            onClick={onTogglePreview}
+            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg flex items-center gap-2 transition-colors text-sm"
+          >
+            <Eye className="w-4 h-4" />
+            {showPreview ? 'සංස්කාරකය' : 'පෙරදසුන'}
+          </button>
+        </div>
       </div>
-    </div>
+
+      <MediaLibrary
+        isOpen={showMediaLibrary}
+        onClose={() => setShowMediaLibrary(false)}
+        onSelect={addMediaComponent}
+      />
+    </>
   );
 };
 
@@ -629,6 +811,8 @@ const CraftVisualBuilder = () => {
         TextComponent,
         HeadingComponent,
         ImageComponent,
+        VideoComponent,
+        AudioComponent,
         ButtonComponent,
         ContainerComponent,
       }}
@@ -736,7 +920,7 @@ const HtmlGeneratorHelper = ({ generatedCode, setGeneratedCode, previewHTML, set
   React.useEffect(() => {
     if (previewHTML === '__GENERATE__') {
       const html = generateHTMLFromEditor(query);
-      setPreviewHTML(html);
+      setPreviewHTML(resolveMediaPathsInHtml(html));
     }
   }, [previewHTML, query, setPreviewHTML]);
 

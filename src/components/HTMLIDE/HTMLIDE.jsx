@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Code, Eye, Settings, Download, Upload, Play, RotateCcw, Copy, Check } from 'lucide-react';
+import { Code, Eye, Settings, Download, Upload, Play, RotateCcw, Copy, Check, Library } from 'lucide-react';
+import { buildMediaSnippet, buildMediaSnippetFromAsset, registerMediaFiles, resolveMediaPathsInHtml } from '../../utils/mediaAssets';
+import MediaLibrary from './MediaLibrary';
 
 const HTMLIDE = () => {
   const [htmlCode, setHtmlCode] = useState(`<!DOCTYPE html>
@@ -86,11 +88,13 @@ const HTMLIDE = () => {
   
   const [showPreview, setShowPreview] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showMediaLibrary, setShowMediaLibrary] = useState(false);
   const [copied, setCopied] = useState(false);
   const [fontSize, setFontSize] = useState(14);
   const [theme, setTheme] = useState('dark');
   const [autoSave, setAutoSave] = useState(true);
   const iframeRef = useRef(null);
+  const textareaRef = useRef(null);
   const lineNumbersRef = useRef(null);
 
   // Auto-save functionality
@@ -118,7 +122,7 @@ const HTMLIDE = () => {
   };
 
   const handleDownloadCode = () => {
-    const blob = new Blob([htmlCode], { type: 'text/html' });
+    const blob = new Blob([resolveMediaPathsInHtml(htmlCode)], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -141,6 +145,51 @@ const HTMLIDE = () => {
   const syncLineNumbersScroll = (event) => {
     if (lineNumbersRef.current) {
       lineNumbersRef.current.scrollTop = event.target.scrollTop;
+    }
+  };
+
+  const insertTextAtCursor = (insertText) => {
+    const textarea = textareaRef.current;
+
+    if (!textarea) {
+      setHtmlCode((current) => `${current}${insertText}`);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const updatedCode = `${htmlCode.slice(0, start)}${insertText}${htmlCode.slice(end)}`;
+
+    setHtmlCode(updatedCode);
+
+    setTimeout(() => {
+      textarea.selectionStart = textarea.selectionEnd = start + insertText.length;
+      textarea.focus();
+    }, 0);
+  };
+
+  const handleMediaUpload = async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+
+    if (!files.length) return;
+
+    const addedAssets = await registerMediaFiles(files);
+    if (!addedAssets.length) return;
+
+    const snippets = addedAssets
+      .map((asset) => buildMediaSnippet({ name: asset.name, type: asset.type }, asset.path))
+      .filter(Boolean);
+
+    if (snippets.length) {
+      insertTextAtCursor(`${snippets.join('\n\n')}\n`);
+    }
+  };
+
+  const handleMediaLibrarySelect = (asset) => {
+    const snippet = buildMediaSnippetFromAsset(asset);
+    if (snippet) {
+      insertTextAtCursor(`${snippet}\n`);
     }
   };
 
@@ -198,6 +247,7 @@ const HTMLIDE = () => {
   };
 
   const themeClasses = getThemeClasses();
+  const previewHtml = resolveMediaPathsInHtml(htmlCode);
 
   return (
     <div className="flex h-full bg-slate-50">
@@ -259,6 +309,26 @@ const HTMLIDE = () => {
                 className="hidden"
               />
             </label>
+
+            <label className="px-3 py-1 bg-fuchsia-600 hover:bg-fuchsia-700 text-white rounded text-sm flex items-center gap-1 cursor-pointer transition-colors">
+              <Upload className="w-4 h-4" />
+              මාධ්‍ය උඩුගත කරන්න
+              <input
+                type="file"
+                accept="image/*,video/*,audio/*"
+                multiple
+                onChange={handleMediaUpload}
+                className="hidden"
+              />
+            </label>
+
+            <button
+              onClick={() => setShowMediaLibrary(true)}
+              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm flex items-center gap-1 transition-colors"
+            >
+              <Library className="w-4 h-4" />
+              Media Library
+            </button>
             
             <button
               onClick={handleReset}
@@ -339,6 +409,7 @@ const HTMLIDE = () => {
                 ))}
               </div>
               <textarea
+                ref={textareaRef}
                 value={htmlCode}
                 onChange={(e) => setHtmlCode(e.target.value)}
                 onScroll={syncLineNumbersScroll}
@@ -371,7 +442,7 @@ const HTMLIDE = () => {
               <div className="flex-1 bg-white">
                 <iframe
                   ref={iframeRef}
-                  srcDoc={htmlCode}
+                  srcDoc={previewHtml}
                   className="w-full h-full border-0"
                   title="Preview"
                   sandbox="allow-scripts allow-same-origin"
@@ -393,6 +464,12 @@ const HTMLIDE = () => {
           </div>
         </div>
       </div>
+
+      <MediaLibrary
+        isOpen={showMediaLibrary}
+        onClose={() => setShowMediaLibrary(false)}
+        onSelect={handleMediaLibrarySelect}
+      />
     </div>
   );
 };

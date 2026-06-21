@@ -1,14 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Play, CheckCircle, Trophy, Lightbulb, Code, Eye, Palette, FileText } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight, Play, CheckCircle, Trophy, Lightbulb, Code, Eye, Palette, FileText, Upload, Library } from 'lucide-react';
 import { htmlLevels } from '../data/htmlLevels';
+import { buildMediaSnippet, buildMediaSnippetFromAsset, registerMediaFiles, resolveMediaPathsInHtml } from '../utils/mediaAssets';
+import MediaLibrary from './HTMLIDE/MediaLibrary';
 
 const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCompletedLevels }) => {
   const [userCode, setUserCode] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [showMediaLibrary, setShowMediaLibrary] = useState(false);
   const [currentHint, setCurrentHint] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const textareaRef = useRef(null);
 
   const currentLevel = htmlLevels[levelIndex];
 
@@ -83,6 +87,50 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
           setLevelIndex(levelIndex + 1);
         }
       }, 2000);
+    }
+  };
+
+  const insertTextAtCursor = (insertText) => {
+    const textarea = textareaRef.current;
+
+    if (!textarea) {
+      setUserCode((current) => `${current}${insertText}`);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const updatedCode = `${userCode.slice(0, start)}${insertText}${userCode.slice(end)}`;
+    setUserCode(updatedCode);
+
+    setTimeout(() => {
+      textarea.selectionStart = textarea.selectionEnd = start + insertText.length;
+      textarea.focus();
+    }, 0);
+  };
+
+  const handleMediaUpload = async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+
+    if (!files.length) return;
+
+    const addedAssets = await registerMediaFiles(files);
+    if (!addedAssets.length) return;
+
+    const snippets = addedAssets
+      .map((asset) => buildMediaSnippet({ name: asset.name, type: asset.type }, asset.path))
+      .filter(Boolean);
+
+    if (snippets.length) {
+      insertTextAtCursor(`${snippets.join('\n\n')}\n`);
+    }
+  };
+
+  const handleMediaLibrarySelect = (asset) => {
+    const snippet = buildMediaSnippetFromAsset(asset);
+    if (snippet) {
+      insertTextAtCursor(`${snippet}\n`);
     }
   };
 
@@ -169,6 +217,8 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
   const getCompletionPercentage = () => {
     return Math.round((completedLevels.size / htmlLevels.length) * 100);
   };
+
+  const previewHTML = resolveMediaPathsInHtml(userCode);
 
   if (!currentLevel) {
     return (
@@ -308,10 +358,29 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
                   <Play className="w-4 h-4" />
                   පරීක්ෂා කරන්න
                 </button>
+                <label className="px-3 py-1 bg-fuchsia-600 hover:bg-fuchsia-700 text-white rounded text-sm flex items-center gap-1 cursor-pointer transition-colors">
+                  <Upload className="w-4 h-4" />
+                  මාධ්‍ය
+                  <input
+                    type="file"
+                    accept="image/*,video/*,audio/*"
+                    multiple
+                    onChange={handleMediaUpload}
+                    className="hidden"
+                  />
+                </label>
+                <button
+                  onClick={() => setShowMediaLibrary(true)}
+                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm flex items-center gap-1 transition-colors"
+                >
+                  <Library className="w-4 h-4" />
+                  Media Library
+                </button>
               </div>
             </div>
             <div className="flex-1 relative">
               <textarea
+                ref={textareaRef}
                 value={userCode}
                 onChange={(e) => setUserCode(e.target.value)}
                 onKeyDown={handleEditorKeyDown}
@@ -330,7 +399,7 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
               </div>
               <div className="flex-1 bg-white p-4 overflow-auto">
                 <iframe
-                  srcDoc={userCode}
+                  srcDoc={previewHTML}
                   className="w-full h-full border-0"
                   title="Preview"
                 />
@@ -383,6 +452,12 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
           </div>
         </div>
       )}
+
+      <MediaLibrary
+        isOpen={showMediaLibrary}
+        onClose={() => setShowMediaLibrary(false)}
+        onSelect={handleMediaLibrarySelect}
+      />
     </div>
   );
 };
