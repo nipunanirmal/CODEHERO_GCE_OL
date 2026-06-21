@@ -86,6 +86,68 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
     }
   };
 
+  const handleEditorKeyDown = (event) => {
+    if (event.key === 'Tab') {
+      event.preventDefault();
+
+      const textarea = event.target;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const tabSpaces = '    ';
+
+      if (event.shiftKey) {
+        const value = userCode;
+
+        // If text is selected, remove one indentation level from each selected line.
+        if (start !== end) {
+          const selectionStartLine = value.lastIndexOf('\n', start - 1) + 1;
+          const selectedText = value.slice(selectionStartLine, end);
+          const lines = selectedText.split('\n');
+
+          const unindentedText = lines
+            .map((line) => (line.startsWith(tabSpaces) ? line.slice(tabSpaces.length) : line.startsWith('\t') ? line.slice(1) : line))
+            .join('\n');
+
+          const updatedCode = `${value.slice(0, selectionStartLine)}${unindentedText}${value.slice(end)}`;
+          setUserCode(updatedCode);
+
+          setTimeout(() => {
+            textarea.selectionStart = selectionStartLine;
+            textarea.selectionEnd = selectionStartLine + unindentedText.length;
+          }, 0);
+          return;
+        }
+
+        // No selection: remove up to one indent level before the cursor on the current line.
+        const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+        const beforeCursor = value.slice(lineStart, start);
+        const removeCount = beforeCursor.startsWith(tabSpaces)
+          ? tabSpaces.length
+          : beforeCursor.startsWith('\t')
+            ? 1
+            : 0;
+
+        if (removeCount > 0) {
+          const updatedCode = `${value.slice(0, start - removeCount)}${value.slice(end)}`;
+          setUserCode(updatedCode);
+
+          setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = start - removeCount;
+          }, 0);
+        }
+
+        return;
+      }
+
+      const updatedCode = `${userCode.slice(0, start)}${tabSpaces}${userCode.slice(end)}`;
+      setUserCode(updatedCode);
+
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + tabSpaces.length;
+      }, 0);
+    }
+  };
+
   const handleNextLevel = () => {
     if (levelIndex < htmlLevels.length - 1) {
       setLevelIndex(levelIndex + 1);
@@ -252,6 +314,7 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
               <textarea
                 value={userCode}
                 onChange={(e) => setUserCode(e.target.value)}
+                onKeyDown={handleEditorKeyDown}
                 className="w-full h-full p-4 font-mono text-sm bg-slate-900 text-green-400 resize-none focus:outline-none"
                 spellCheck={false}
               />

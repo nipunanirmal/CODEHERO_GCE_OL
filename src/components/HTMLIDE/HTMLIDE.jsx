@@ -91,6 +91,7 @@ const HTMLIDE = () => {
   const [theme, setTheme] = useState('dark');
   const [autoSave, setAutoSave] = useState(true);
   const iframeRef = useRef(null);
+  const lineNumbersRef = useRef(null);
 
   // Auto-save functionality
   useEffect(() => {
@@ -134,6 +135,30 @@ const HTMLIDE = () => {
         setHtmlCode(e.target.result);
       };
       reader.readAsText(file);
+    }
+  };
+
+  const syncLineNumbersScroll = (event) => {
+    if (lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = event.target.scrollTop;
+    }
+  };
+
+  const handleEditorKeyDown = (event) => {
+    if (event.key === 'Tab') {
+      event.preventDefault();
+
+      const textarea = event.target;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const tabSpaces = '    ';
+
+      const updatedCode = `${htmlCode.slice(0, start)}${tabSpaces}${htmlCode.slice(end)}`;
+      setHtmlCode(updatedCode);
+
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + tabSpaces.length;
+      }, 0);
     }
   };
 
@@ -296,36 +321,33 @@ const HTMLIDE = () => {
             <div className={`${themeClasses.container} px-4 py-2 text-sm font-medium`}>
               index.html
             </div>
-            <div className="flex-1 relative">
-              <textarea
-                value={htmlCode}
-                onChange={(e) => setHtmlCode(e.target.value)}
-                onKeyDown={(e) => {
-                  // Handle tab key for indentation
-                  if (e.key === 'Tab') {
-                    e.preventDefault();
-                    const start = e.target.selectionStart;
-                    const end = e.target.selectionEnd;
-                    const newCode = htmlCode.substring(0, start) + '    ' + htmlCode.substring(end);
-                    setHtmlCode(newCode);
-                    setTimeout(() => {
-                      e.target.selectionStart = e.target.selectionEnd = start + 4;
-                    }, 0);
-                  }
+            <div className="flex-1 relative overflow-hidden">
+              <div
+                ref={lineNumbersRef}
+                className={`absolute left-0 top-0 bottom-0 w-12 border-r border-slate-700/40 text-right pr-2 pt-4 select-none pointer-events-none overflow-y-scroll z-20 ${themeClasses.editor}`}
+                style={{
+                  fontSize: `${Math.max(fontSize - 2, 11)}px`,
+                  lineHeight: '1.5',
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none'
                 }}
-                className={`w-full h-full p-4 font-mono resize-none focus:outline-none ${themeClasses.editor}`}
-                style={{ fontSize: `${fontSize}px` }}
-                spellCheck={false}
-                placeholder="මෙතැන ඔබගේ HTML කේතය ලියන්න..."
-              />
-              {/* Line numbers */}
-              <div className={`absolute left-0 top-0 p-4 font-mono text-xs opacity-50 pointer-events-none ${themeClasses.editor}`} style={{ fontSize: `${fontSize}px` }}>
+              >
                 {htmlCode.split('\n').map((_, i) => (
-                  <div key={i} style={{ height: `${fontSize * 1.5}px` }}>
+                  <div key={i} className="h-[1.5em] leading-[1.5]">
                     {i + 1}
                   </div>
                 ))}
               </div>
+              <textarea
+                value={htmlCode}
+                onChange={(e) => setHtmlCode(e.target.value)}
+                onScroll={syncLineNumbersScroll}
+                onKeyDown={handleEditorKeyDown}
+                className={`absolute inset-0 z-10 w-full h-full pl-16 pr-4 py-4 font-mono resize-none focus:outline-none ${themeClasses.editor}`}
+                style={{ fontSize: `${fontSize}px`, lineHeight: '1.5' }}
+                spellCheck={false}
+                placeholder="මෙතැන ඔබගේ HTML කේතය ලියන්න..."
+              />
             </div>
           </div>
 
