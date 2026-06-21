@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Play, CheckCircle, Trophy, Lightbulb, Code, Eye, Palette, FileText, Upload, Library } from 'lucide-react';
 import { htmlLevels } from '../data/htmlLevels';
 import { buildMediaSnippet, buildMediaSnippetFromAsset, registerMediaFiles, resolveMediaPathsInHtml } from '../utils/mediaAssets';
+import { useDragAndDropMedia } from '../hooks/useDragAndDropMedia';
 import MediaLibrary from './HTMLIDE/MediaLibrary';
+import HtmlAutocomplete from './HTMLIDE/HtmlAutocomplete';
 
 const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCompletedLevels }) => {
   const [userCode, setUserCode] = useState('');
@@ -12,6 +14,7 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
   const [currentHint, setCurrentHint] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
   const textareaRef = useRef(null);
 
   const currentLevel = htmlLevels[levelIndex];
@@ -131,6 +134,28 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
     const snippet = buildMediaSnippetFromAsset(asset);
     if (snippet) {
       insertTextAtCursor(`${snippet}\n`);
+    }
+  };
+
+  const handleDroppedFiles = async (files) => {
+    const addedAssets = await registerMediaFiles(files);
+    if (!addedAssets.length) return;
+
+    const snippets = addedAssets
+      .map((asset) => buildMediaSnippet({ name: asset.name, type: asset.type }, asset.path))
+      .filter(Boolean);
+
+    if (snippets.length) {
+      insertTextAtCursor(`${snippets.join('\n\n')}\n`);
+    }
+  };
+
+  const { isDraggingOver, handlers: dropHandlers } = useDragAndDropMedia(handleDroppedFiles);
+
+  const handleCursorUpdate = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      setCursorPosition(textarea.selectionStart);
     }
   };
 
@@ -334,7 +359,7 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
         {/* Editor and Preview */}
         <div className="flex-1 flex">
           {/* Code Editor */}
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col relative" {...dropHandlers}>
             <div className="bg-slate-800 text-white px-4 py-2 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Code className="w-4 h-4" />
@@ -379,13 +404,28 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
               </div>
             </div>
             <div className="flex-1 relative">
+              {isDraggingOver && (
+                <div className="absolute inset-0 z-30 bg-emerald-500/20 border-2 border-dashed border-emerald-500 flex items-center justify-center pointer-events-none">
+                  <div className="bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
+                    <Upload className="w-5 h-5" />
+                    <span>මෙහි media ගොනු දමන්න</span>
+                  </div>
+                </div>
+              )}
               <textarea
                 ref={textareaRef}
                 value={userCode}
                 onChange={(e) => setUserCode(e.target.value)}
                 onKeyDown={handleEditorKeyDown}
+                onKeyUp={handleCursorUpdate}
+                onClick={handleCursorUpdate}
                 className="w-full h-full p-4 font-mono text-sm bg-slate-900 text-green-400 resize-none focus:outline-none"
                 spellCheck={false}
+              />
+              <HtmlAutocomplete
+                value={userCode}
+                cursorPosition={cursorPosition}
+                textareaRef={textareaRef}
               />
             </div>
           </div>

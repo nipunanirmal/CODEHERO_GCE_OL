@@ -24,6 +24,7 @@ import {
   Library,
 } from 'lucide-react';
 import { registerMediaFiles, resolveMediaPathsInHtml, getMediaKindFromType } from '../../utils/mediaAssets';
+import { useDragAndDropMedia } from '../../hooks/useDragAndDropMedia';
 import MediaLibrary from './MediaLibrary';
 
 /* ──────────────────────────────────────────────
@@ -973,6 +974,45 @@ const HtmlGeneratorHelper = ({ generatedCode, setGeneratedCode, previewHTML, set
    Main Component
    ────────────────────────────────────────────── */
 
+const CanvasDropArea = ({ children }) => {
+  const { actions, query } = useEditor();
+  const { isDraggingOver, handlers } = useDragAndDropMedia(async (files) => {
+    const addedAssets = await registerMediaFiles(files);
+    if (!addedAssets.length) return;
+
+    const rootNodes = query.getNodes();
+    const rootNode = Object.values(rootNodes).find((n) => n.data && n.data.name === 'ROOT');
+    const parentId = rootNode ? rootNode.id : null;
+    if (!parentId) return;
+
+    for (const asset of addedAssets) {
+      const kind = getMediaKindFromType(asset.type);
+      let componentType = ImageComponent;
+      if (kind === 'video') componentType = VideoComponent;
+      if (kind === 'audio') componentType = AudioComponent;
+
+      const props = { ...componentType.craft.props, src: asset.path };
+      const reactElement = React.createElement(componentType, props);
+      const nodeTree = query.parseReactElement(reactElement).toNodeTree();
+      actions.addNodeTree(nodeTree, parentId);
+    }
+  });
+
+  return (
+    <div className="relative flex-1 overflow-auto p-6" {...handlers}>
+      {isDraggingOver && (
+        <div className="absolute inset-4 z-30 bg-blue-500/20 border-2 border-dashed border-blue-500 rounded-lg flex items-center justify-center pointer-events-none">
+          <div className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
+            <Upload className="w-5 h-5" />
+            <span>මෙහි media ගොනු දමන්න</span>
+          </div>
+        </div>
+      )}
+      {children}
+    </div>
+  );
+};
+
 const VisualBuilder = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
@@ -1016,7 +1056,7 @@ const VisualBuilder = () => {
                 onTogglePreview={handleTogglePreview}
                 showPreview={showPreview}
               />
-              <div className="flex-1 overflow-auto p-6">
+              <CanvasDropArea>
                 <Frame>
                   <Canvas
                     id="root-canvas"
@@ -1028,7 +1068,7 @@ const VisualBuilder = () => {
                     <Element is={ParagraphComponent} text="ආරම්භ කිරීමට වම්පසින් අංග එකතු කරන්න" fontSize={18} color="#9ca3af" textAlign="center" />
                   </Canvas>
                 </Frame>
-              </div>
+              </CanvasDropArea>
             </div>
 
             <PropertyPanel />

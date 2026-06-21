@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Code, Eye, Settings, Download, Upload, Play, RotateCcw, Copy, Check, Library } from 'lucide-react';
 import { buildMediaSnippet, buildMediaSnippetFromAsset, registerMediaFiles, resolveMediaPathsInHtml } from '../../utils/mediaAssets';
+import { useDragAndDropMedia } from '../../hooks/useDragAndDropMedia';
 import MediaLibrary from './MediaLibrary';
+import HtmlAutocomplete from './HtmlAutocomplete';
 
 const HTMLIDE = () => {
   const [htmlCode, setHtmlCode] = useState(`<!DOCTYPE html>
@@ -93,6 +95,7 @@ const HTMLIDE = () => {
   const [fontSize, setFontSize] = useState(14);
   const [theme, setTheme] = useState('dark');
   const [autoSave, setAutoSave] = useState(true);
+  const [cursorPosition, setCursorPosition] = useState(0);
   const iframeRef = useRef(null);
   const textareaRef = useRef(null);
   const lineNumbersRef = useRef(null);
@@ -190,6 +193,28 @@ const HTMLIDE = () => {
     const snippet = buildMediaSnippetFromAsset(asset);
     if (snippet) {
       insertTextAtCursor(`${snippet}\n`);
+    }
+  };
+
+  const handleDroppedFiles = async (files) => {
+    const addedAssets = await registerMediaFiles(files);
+    if (!addedAssets.length) return;
+
+    const snippets = addedAssets
+      .map((asset) => buildMediaSnippet({ name: asset.name, type: asset.type }, asset.path))
+      .filter(Boolean);
+
+    if (snippets.length) {
+      insertTextAtCursor(`${snippets.join('\n\n')}\n`);
+    }
+  };
+
+  const { isDraggingOver, handlers: dropHandlers } = useDragAndDropMedia(handleDroppedFiles);
+
+  const handleCursorUpdate = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      setCursorPosition(textarea.selectionStart);
     }
   };
 
@@ -387,11 +412,22 @@ const HTMLIDE = () => {
         {/* Editor and Preview */}
         <div className="flex-1 flex">
           {/* Code Editor */}
-          <div className={`${showPreview ? 'w-1/2' : 'w-full'} flex flex-col border-r ${themeClasses.container}`}>
+          <div
+            className={`${showPreview ? 'w-1/2' : 'w-full'} flex flex-col border-r ${themeClasses.container} relative`}
+            {...dropHandlers}
+          >
             <div className={`${themeClasses.container} px-4 py-2 text-sm font-medium`}>
               index.html
             </div>
             <div className="flex-1 relative overflow-hidden">
+              {isDraggingOver && (
+                <div className="absolute inset-0 z-30 bg-blue-500/20 border-2 border-dashed border-blue-500 flex items-center justify-center pointer-events-none">
+                  <div className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
+                    <Upload className="w-5 h-5" />
+                    <span>මෙහි media ගොනු දමන්න</span>
+                  </div>
+                </div>
+              )}
               <div
                 ref={lineNumbersRef}
                 className={`absolute left-0 top-0 bottom-0 w-12 border-r border-slate-700/40 text-right pr-2 pt-4 select-none pointer-events-none overflow-y-scroll z-20 ${themeClasses.editor}`}
@@ -414,10 +450,17 @@ const HTMLIDE = () => {
                 onChange={(e) => setHtmlCode(e.target.value)}
                 onScroll={syncLineNumbersScroll}
                 onKeyDown={handleEditorKeyDown}
+                onKeyUp={handleCursorUpdate}
+                onClick={handleCursorUpdate}
                 className={`absolute inset-0 z-10 w-full h-full pl-16 pr-4 py-4 font-mono resize-none focus:outline-none ${themeClasses.editor}`}
                 style={{ fontSize: `${fontSize}px`, lineHeight: '1.5' }}
                 spellCheck={false}
                 placeholder="මෙතැන ඔබගේ HTML කේතය ලියන්න..."
+              />
+              <HtmlAutocomplete
+                value={htmlCode}
+                cursorPosition={cursorPosition}
+                textareaRef={textareaRef}
               />
             </div>
           </div>
