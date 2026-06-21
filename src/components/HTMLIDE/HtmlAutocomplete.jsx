@@ -90,20 +90,26 @@ const HtmlAutocomplete = ({ value, cursorPosition, textareaRef }) => {
 
   return (
     <div
-      className="absolute z-40 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden min-w-[160px] max-w-[240px]"
+      className="absolute z-40 bg-slate-800 border border-slate-600 rounded-md shadow-2xl overflow-hidden min-w-[200px] max-w-[280px]"
       style={{ left: position.left, top: position.top }}
     >
-      <div className="max-h-48 overflow-y-auto" ref={listRef}>
+      <div className="px-2 py-1 text-xs text-slate-400 border-b border-slate-600 bg-slate-900">
+        HTML tag suggestions
+      </div>
+      <div className="max-h-48 overflow-y-auto py-1" ref={listRef}>
         {matches.map((tag, index) => (
-          <button
+          <div
             key={tag}
             onClick={() => setActive(false)}
-            className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
-              index === selectedIndex ? 'bg-blue-500 text-white' : 'hover:bg-slate-100 text-slate-700'
+            className={`flex items-center justify-between px-3 py-1 text-sm cursor-pointer transition-colors ${
+              index === selectedIndex ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-slate-700'
             }`}
           >
-            {tag}
-          </button>
+            <span className="font-mono">&lt;{tag}&gt;</span>
+            <span className="text-xs text-slate-400">
+              {index === selectedIndex ? 'Enter' : ''}
+            </span>
+          </div>
         ))}
       </div>
     </div>
