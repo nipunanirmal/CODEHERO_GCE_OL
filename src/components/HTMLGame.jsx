@@ -5,6 +5,7 @@ import { buildMediaSnippet, buildMediaSnippetFromAsset, registerMediaFiles, reso
 import { useDragAndDropMedia } from '../hooks/useDragAndDropMedia';
 import MediaLibrary from './HTMLIDE/MediaLibrary';
 import HtmlAutocomplete from './HTMLIDE/HtmlAutocomplete';
+import BrowserPreview from './HTMLIDE/BrowserPreview';
 
 const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCompletedLevels }) => {
   const [userCode, setUserCode] = useState('');
@@ -433,17 +434,7 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
           {/* Preview Panel */}
           {showPreview && (
             <div className="w-1/2 border-l border-slate-200 flex flex-col">
-              <div className="bg-slate-800 text-white px-4 py-2 flex items-center gap-2">
-                <Eye className="w-4 h-4" />
-                <span className="text-sm font-medium">පෙරදසුන</span>
-              </div>
-              <div className="flex-1 bg-white p-4 overflow-auto">
-                <iframe
-                  srcDoc={previewHTML}
-                  className="w-full h-full border-0"
-                  title="Preview"
-                />
-              </div>
+              <BrowserPreview html={previewHTML} theme="dark" />
             </div>
           )}
         </div>

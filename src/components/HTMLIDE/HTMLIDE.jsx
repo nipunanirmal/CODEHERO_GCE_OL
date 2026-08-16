@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Code, Eye, Settings, Download, Upload, Play, RotateCcw, Copy, Check, Library } from 'lucide-react';
+import { Code, Eye, Settings, Download, Upload, RotateCcw, Copy, Check, Library } from 'lucide-react';
 import { buildMediaSnippet, buildMediaSnippetFromAsset, registerMediaFiles, resolveMediaPathsInHtml } from '../../utils/mediaAssets';
 import { useDragAndDropMedia } from '../../hooks/useDragAndDropMedia';
 import MediaLibrary from './MediaLibrary';
 import HtmlAutocomplete from './HtmlAutocomplete';
+import BrowserPreview from './BrowserPreview';
 
 const HTMLIDE = () => {
   const [htmlCode, setHtmlCode] = useState(`<!DOCTYPE html>
@@ -96,7 +97,6 @@ const HTMLIDE = () => {
   const [theme, setTheme] = useState('dark');
   const [autoSave, setAutoSave] = useState(true);
   const [cursorPosition, setCursorPosition] = useState(0);
-  const iframeRef = useRef(null);
   const textareaRef = useRef(null);
   const lineNumbersRef = useRef(null);
 
@@ -468,29 +468,7 @@ const HTMLIDE = () => {
           {/* Preview Panel */}
           {showPreview && (
             <div className="w-1/2 flex flex-col">
-              <div className={`${themeClasses.container} px-4 py-2 text-sm font-medium flex items-center justify-between`}>
-                <span>පෙරදසුන</span>
-                <button
-                  onClick={() => {
-                    if (iframeRef.current) {
-                      iframeRef.current.src = iframeRef.current.src;
-                    }
-                  }}
-                  className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs flex items-center gap-1 transition-colors"
-                >
-                  <Play className="w-3 h-3" />
-                  නැවත පූරණය
-                </button>
-              </div>
-              <div className="flex-1 bg-white">
-                <iframe
-                  ref={iframeRef}
-                  srcDoc={previewHtml}
-                  className="w-full h-full border-0"
-                  title="Preview"
-                  sandbox="allow-scripts allow-same-origin"
-                />
-              </div>
+              <BrowserPreview html={previewHtml} theme={theme} />
             </div>
           )}
         </div>

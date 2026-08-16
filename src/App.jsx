@@ -52,13 +52,13 @@ const Home = () => (
             color="bg-amber-500"
             icon={<Code size={32} />}
           />
-          <ModuleCard
+          {/* <ModuleCard
             to="/html"
             title="HTML වෙබ්"
             desc="Web Development"
             color="bg-purple-500"
             icon={<Globe size={32} />}
-          />
+          /> */}
         </div>
       </div>
     </div>
@@ -325,7 +325,7 @@ function AppContent() {
           </div>
 
           {/* HTML */}
-          <div>
+          {/* <div>
             <button
               onClick={() => toggleSection('html')}
               className={`w-full flex items-center ${isSidebarOpen ? 'justify-between px-6' : 'justify-center px-0'} py-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white transition-all`}
@@ -335,9 +335,10 @@ function AppContent() {
                 {isSidebarOpen && <span className="font-bold tracking-tight text-lg">HTML වෙබ්</span>}
               </div>
               {isSidebarOpen && (openSection === 'html' ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
-            </button>
+            </button> */}
 
             {/* LEVEL LIST (Nested) */}
+            {/*
             {isSidebarOpen && openSection === 'html' && (
               <div className="ml-6 pl-4 border-l border-slate-800 space-y-1 my-2 animate-in slide-in-from-top-2 duration-200">
                 {htmlLevels.map((level, idx) => {
@@ -360,7 +361,8 @@ function AppContent() {
                 })}
               </div>
             )}
-          </div>
+            </div> */}
+       
 
           <NavItem to="/html-ide" icon={<Code2 size={22} />} label="HTML IDE" isOpen={isSidebarOpen} isActive={location.pathname === '/html-ide'} />
           {/* <NavItem to="/visual-builder" icon={<Palette size={22} />} label="Visual Builder" isOpen={isSidebarOpen} isActive={location.pathname === '/visual-builder'} /> */}
