@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Play, CheckCircle, Trophy, Lightbulb, Code, Eye, Palette, FileText, Upload, Library } from 'lucide-react';
 import { htmlLevels } from '../data/htmlLevels';
-import { buildMediaSnippet, buildMediaSnippetFromAsset, registerMediaFiles, resolveMediaPathsInHtml } from '../utils/mediaAssets';
+import { buildMediaSnippet, buildMediaSnippetFromAsset, getMediaKindFromType, MEDIA_ACCEPT, registerMediaFiles, resolveMediaPathsInHtml } from '../utils/mediaAssets';
 import { useDragAndDropMedia } from '../hooks/useDragAndDropMedia';
 import MediaLibrary from './HTMLIDE/MediaLibrary';
 import HtmlAutocomplete from './HTMLIDE/HtmlAutocomplete';
+import { useCodeEditor } from './HTMLIDE/useCodeEditor';
+import SplitPane from './HTMLIDE/SplitPane';
+import ConsolePanel, { ConsoleToggleButton } from './HTMLIDE/ConsolePanel';
+import { usePreviewConsole } from './HTMLIDE/usePreviewConsole';
 import BrowserPreview from './HTMLIDE/BrowserPreview';
 
 const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCompletedLevels }) => {
@@ -132,6 +136,12 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
   };
 
   const handleMediaLibrarySelect = (asset) => {
+    // Images insert only the path so learners write the <img> tag themselves.
+    if (getMediaKindFromType(asset.type) === 'image') {
+      insertTextAtCursor(asset.path);
+      return;
+    }
+
     const snippet = buildMediaSnippetFromAsset(asset);
     if (snippet) {
       insertTextAtCursor(`${snippet}\n`);
@@ -160,67 +170,22 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
     }
   };
 
-  const handleEditorKeyDown = (event) => {
-    if (event.key === 'Tab') {
-      event.preventDefault();
+  const { applyEdit, handleKeyDown: handleEditorKeyDown } = useCodeEditor({
+    textareaRef,
+    setValue: setUserCode,
+    onCursorChange: setCursorPosition,
+  });
 
-      const textarea = event.target;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const tabSpaces = '    ';
-
-      if (event.shiftKey) {
-        const value = userCode;
-
-        // If text is selected, remove one indentation level from each selected line.
-        if (start !== end) {
-          const selectionStartLine = value.lastIndexOf('\n', start - 1) + 1;
-          const selectedText = value.slice(selectionStartLine, end);
-          const lines = selectedText.split('\n');
-
-          const unindentedText = lines
-            .map((line) => (line.startsWith(tabSpaces) ? line.slice(tabSpaces.length) : line.startsWith('\t') ? line.slice(1) : line))
-            .join('\n');
-
-          const updatedCode = `${value.slice(0, selectionStartLine)}${unindentedText}${value.slice(end)}`;
-          setUserCode(updatedCode);
-
-          setTimeout(() => {
-            textarea.selectionStart = selectionStartLine;
-            textarea.selectionEnd = selectionStartLine + unindentedText.length;
-          }, 0);
-          return;
-        }
-
-        // No selection: remove up to one indent level before the cursor on the current line.
-        const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-        const beforeCursor = value.slice(lineStart, start);
-        const removeCount = beforeCursor.startsWith(tabSpaces)
-          ? tabSpaces.length
-          : beforeCursor.startsWith('\t')
-            ? 1
-            : 0;
-
-        if (removeCount > 0) {
-          const updatedCode = `${value.slice(0, start - removeCount)}${value.slice(end)}`;
-          setUserCode(updatedCode);
-
-          setTimeout(() => {
-            textarea.selectionStart = textarea.selectionEnd = start - removeCount;
-          }, 0);
-        }
-
-        return;
-      }
-
-      const updatedCode = `${userCode.slice(0, start)}${tabSpaces}${userCode.slice(end)}`;
-      setUserCode(updatedCode);
-
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + tabSpaces.length;
-      }, 0);
-    }
-  };
+  const {
+    entries: consoleEntries,
+    open: consoleOpen,
+    errorCount: consoleErrors,
+    warnCount: consoleWarnings,
+    handleConsoleMessage,
+    closeConsole,
+    toggleConsole,
+    clearConsole,
+  } = usePreviewConsole();
 
   const handleNextLevel = () => {
     if (levelIndex < htmlLevels.length - 1) {
@@ -311,7 +276,7 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col">
         {/* Header */}
         <div className="bg-white border-b border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4">
@@ -357,86 +322,107 @@ const HTMLGame = ({ xp, addXP, levelIndex, setLevelIndex, completedLevels, setCo
           </div>
         </div>
 
-        {/* Editor and Preview */}
-        <div className="flex-1 flex">
-          {/* Code Editor */}
-          <div className="flex-1 flex flex-col relative" {...dropHandlers}>
-            <div className="bg-slate-800 text-white px-4 py-2 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Code className="w-4 h-4" />
-                <span className="text-sm font-medium">HTML කේත සංස්කාරක</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowPreview(!showPreview)}
-                  className={`px-3 py-1 rounded text-sm flex items-center gap-1 transition-colors
-                    ${showPreview ? 'bg-emerald-600 text-white' : 'bg-slate-700 hover:bg-slate-600'}
-                  `}
-                >
-                  <Eye className="w-4 h-4" />
-                  පෙරදසුන
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={isCompleted}
-                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-600 disabled:cursor-not-allowed rounded text-sm flex items-center gap-1 transition-colors"
-                >
-                  <Play className="w-4 h-4" />
-                  පරීක්ෂා කරන්න
-                </button>
-                <label className="px-3 py-1 bg-fuchsia-600 hover:bg-fuchsia-700 text-white rounded text-sm flex items-center gap-1 cursor-pointer transition-colors">
-                  <Upload className="w-4 h-4" />
-                  මාධ්‍ය
-                  <input
-                    type="file"
-                    accept="image/*,video/*,audio/*"
-                    multiple
-                    onChange={handleMediaUpload}
-                    className="hidden"
-                  />
-                </label>
-                <button
-                  onClick={() => setShowMediaLibrary(true)}
-                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm flex items-center gap-1 transition-colors"
-                >
-                  <Library className="w-4 h-4" />
-                  Media Library
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 relative">
-              {isDraggingOver && (
-                <div className="absolute inset-0 z-30 bg-emerald-500/20 border-2 border-dashed border-emerald-500 flex items-center justify-center pointer-events-none">
-                  <div className="bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
-                    <Upload className="w-5 h-5" />
-                    <span>මෙහි media ගොනු දමන්න</span>
-                  </div>
+        {/* Editor + Console | Preview (all resizable) */}
+        <div className="flex-1 min-h-0 flex">
+          <SplitPane direction="horizontal" storageKey="html-game-split-preview" showSecond={showPreview}>
+            <div className="flex-1 min-h-0 flex flex-col relative" {...dropHandlers}>
+              <div className="bg-slate-800 text-white px-4 py-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Code className="w-4 h-4" />
+                  <span className="text-sm font-medium">HTML කේත සංස්කාරක</span>
                 </div>
-              )}
-              <textarea
-                ref={textareaRef}
-                value={userCode}
-                onChange={(e) => setUserCode(e.target.value)}
-                onKeyDown={handleEditorKeyDown}
-                onKeyUp={handleCursorUpdate}
-                onClick={handleCursorUpdate}
-                className="w-full h-full p-4 font-mono text-sm bg-slate-900 text-green-400 resize-none focus:outline-none"
-                spellCheck={false}
-              />
-              <HtmlAutocomplete
-                value={userCode}
-                cursorPosition={cursorPosition}
-                textareaRef={textareaRef}
-              />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowPreview(!showPreview)}
+                    className={`px-3 py-1 rounded text-sm flex items-center gap-1 transition-colors
+                      ${showPreview ? 'bg-emerald-600 text-white' : 'bg-slate-700 hover:bg-slate-600'}
+                    `}
+                  >
+                    <Eye className="w-4 h-4" />
+                    පෙරදසුන
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={isCompleted}
+                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-600 disabled:cursor-not-allowed rounded text-sm flex items-center gap-1 transition-colors"
+                  >
+                    <Play className="w-4 h-4" />
+                    පරීක්ෂා කරන්න
+                  </button>
+                  <ConsoleToggleButton
+                    open={consoleOpen}
+                    entryCount={consoleEntries.length}
+                    errorCount={consoleErrors}
+                    onClick={toggleConsole}
+                  />
+                  <label className="px-3 py-1 bg-fuchsia-600 hover:bg-fuchsia-700 text-white rounded text-sm flex items-center gap-1 cursor-pointer transition-colors">
+                    <Upload className="w-4 h-4" />
+                    මාධ්‍ය
+                    <input
+                      type="file"
+                      accept={MEDIA_ACCEPT}
+                      multiple
+                      onChange={handleMediaUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  <button
+                    onClick={() => setShowMediaLibrary(true)}
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm flex items-center gap-1 transition-colors"
+                  >
+                    <Library className="w-4 h-4" />
+                    Media Library
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 min-h-0">
+                <SplitPane
+                  direction="vertical"
+                  initialSize={70}
+                  minSize={20}
+                  maxSize={90}
+                  storageKey="html-game-split-console"
+                  showSecond={consoleOpen}
+                >
+                  <div className="flex-1 min-h-0 relative">
+                    {isDraggingOver && (
+                      <div className="absolute inset-0 z-30 bg-emerald-500/20 border-2 border-dashed border-emerald-500 flex items-center justify-center pointer-events-none">
+                        <div className="bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
+                          <Upload className="w-5 h-5" />
+                          <span>මෙහි media ගොනු දමන්න</span>
+                        </div>
+                      </div>
+                    )}
+                    <textarea
+                      ref={textareaRef}
+                      value={userCode}
+                      onChange={(e) => setUserCode(e.target.value)}
+                      onKeyDown={handleEditorKeyDown}
+                      onKeyUp={handleCursorUpdate}
+                      onClick={handleCursorUpdate}
+                      className="w-full h-full p-4 font-mono text-sm bg-slate-900 text-green-400 resize-none focus:outline-none"
+                      spellCheck={false}
+                    />
+                    <HtmlAutocomplete
+                      value={userCode}
+                      cursorPosition={cursorPosition}
+                      textareaRef={textareaRef}
+                      onAccept={applyEdit}
+                    />
+                  </div>
+                  <ConsolePanel
+                    entries={consoleEntries}
+                    errorCount={consoleErrors}
+                    warnCount={consoleWarnings}
+                    onClear={clearConsole}
+                    onClose={closeConsole}
+                  />
+                </SplitPane>
+              </div>
             </div>
-          </div>
 
-          {/* Preview Panel */}
-          {showPreview && (
-            <div className="w-1/2 border-l border-slate-200 flex flex-col">
-              <BrowserPreview html={previewHTML} theme="dark" />
-            </div>
-          )}
+            <BrowserPreview html={previewHTML} theme="dark" onConsoleMessage={handleConsoleMessage} />
+          </SplitPane>
         </div>
 
         {/* Hints Section */}

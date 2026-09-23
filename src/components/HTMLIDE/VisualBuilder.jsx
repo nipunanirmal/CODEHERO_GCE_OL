@@ -1083,6 +1083,8 @@ const VisualBuilder = () => {
             <div className="flex-1 bg-white">
               <iframe
                 srcDoc={previewHTML}
+                sandbox=""
+                referrerPolicy="no-referrer"
                 className="w-full h-full border-0"
                 title="Preview"
               />

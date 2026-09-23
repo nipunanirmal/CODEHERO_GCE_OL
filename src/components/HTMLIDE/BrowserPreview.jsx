@@ -1,17 +1,55 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, RefreshCw, Lock, Globe, X } from 'lucide-react';
+import { PREVIEW_SANDBOX, buildSandboxedDocument, createPreviewToken } from './previewSandbox';
 
-const BrowserPreview = ({ html, theme = 'dark', fakeUrl = 'localhost/index.html' }) => {
+// Re-running student scripts on every keystroke would re-fire alert()/prompt() constantly.
+const RUN_DELAY_MS = 500;
+
+const BrowserPreview = ({ html, theme = 'dark', fakeUrl = 'localhost/index.html', onConsoleMessage }) => {
   const [reloadKey, setReloadKey] = useState(0);
+  const [runHtml, setRunHtml] = useState(html);
+  const iframeRef = useRef(null);
+  const onConsoleRef = useRef(onConsoleMessage);
+
+  useEffect(() => {
+    onConsoleRef.current = onConsoleMessage;
+  }, [onConsoleMessage]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setRunHtml(html), RUN_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [html]);
+
+  // A fresh token per run: late messages from a previous run are ignored.
+  const { token, srcDoc } = useMemo(() => {
+    const runToken = `${createPreviewToken()}-${reloadKey}`;
+    return { token: runToken, srcDoc: buildSandboxedDocument(runHtml, runToken) };
+  }, [runHtml, reloadKey]);
+
+  useEffect(() => {
+    onConsoleRef.current?.({ kind: 'reset' });
+  }, [token]);
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      const data = event.data;
+      if (!iframeRef.current || event.source !== iframeRef.current.contentWindow) return;
+      if (!data || typeof data !== 'object' || data.__codehero !== token) return;
+      if (!['log', 'info', 'warn', 'error', 'clear'].includes(data.kind)) return;
+      onConsoleRef.current?.({ kind: data.kind, text: String(data.text ?? '') });
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [token]);
 
   const pageTitle = useMemo(() => {
     try {
-      const doc = new DOMParser().parseFromString(html || '', 'text/html');
+      const doc = new DOMParser().parseFromString(runHtml || '', 'text/html');
       return doc.title?.trim() || 'index.html';
     } catch {
       return 'index.html';
     }
-  }, [html]);
+  }, [runHtml]);
 
   const chrome = theme === 'dark'
     ? {
@@ -30,7 +68,7 @@ const BrowserPreview = ({ html, theme = 'dark', fakeUrl = 'localhost/index.html'
       };
 
   return (
-    <div className={`flex flex-col h-full border rounded-lg overflow-hidden ${chrome.shell}`}>
+    <div className={`flex flex-col h-full min-h-0 border rounded-lg overflow-hidden ${chrome.shell}`}>
       {/* Tab strip */}
       <div className={`flex items-end px-2 pt-2 gap-1 ${chrome.toolbar}`}>
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-t-md max-w-[220px] min-w-0 ${chrome.tabActive}`}>
@@ -62,13 +100,15 @@ const BrowserPreview = ({ html, theme = 'dark', fakeUrl = 'localhost/index.html'
       </div>
 
       {/* Content area */}
-      <div className="flex-1 bg-white">
+      <div className="flex-1 min-h-0 bg-white">
         <iframe
-          key={reloadKey}
-          srcDoc={html}
+          ref={iframeRef}
+          key={token}
+          srcDoc={srcDoc}
           className="w-full h-full border-0"
           title={pageTitle}
-          sandbox="allow-scripts allow-same-origin"
+          sandbox={PREVIEW_SANDBOX}
+          referrerPolicy="no-referrer"
         />
       </div>
     </div>

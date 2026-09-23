@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Code, Eye, Settings, Download, Upload, RotateCcw, Copy, Check, Library } from 'lucide-react';
-import { buildMediaSnippet, buildMediaSnippetFromAsset, registerMediaFiles, resolveMediaPathsInHtml } from '../../utils/mediaAssets';
+import { buildMediaSnippet, buildMediaSnippetFromAsset, getMediaKindFromType, MEDIA_ACCEPT, registerMediaFiles, resolveMediaPathsInHtml } from '../../utils/mediaAssets';
 import { useDragAndDropMedia } from '../../hooks/useDragAndDropMedia';
 import MediaLibrary from './MediaLibrary';
 import HtmlAutocomplete from './HtmlAutocomplete';
+import { useCodeEditor } from './useCodeEditor';
+import SplitPane from './SplitPane';
+import ConsolePanel, { ConsoleToggleButton } from './ConsolePanel';
+import { usePreviewConsole } from './usePreviewConsole';
 import BrowserPreview from './BrowserPreview';
 
 const HTMLIDE = () => {
@@ -136,13 +140,25 @@ const HTMLIDE = () => {
 
   const handleUploadCode = (event) => {
     const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setHtmlCode(e.target.result);
-      };
-      reader.readAsText(file);
+    event.target.value = '';
+    if (!file) return;
+
+    if (!/\.html?$/i.test(file.name) || file.size > 1024 * 1024) {
+      alert('.html / .htm ගොනුවක් පමණක් (උපරිම 1 MB) / Only .html or .htm files up to 1 MB can be opened.');
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = String(e.target.result || '');
+      // A NUL character means this is a binary file renamed to .html.
+      if (text.includes('\0')) {
+        alert('මෙය වලංගු HTML ගොනුවක් නොවේ / This is not a valid HTML text file.');
+        return;
+      }
+      setHtmlCode(text);
+    };
+    reader.readAsText(file);
   };
 
   const syncLineNumbersScroll = (event) => {
@@ -190,6 +206,12 @@ const HTMLIDE = () => {
   };
 
   const handleMediaLibrarySelect = (asset) => {
+    // Images insert only the path so learners write the <img> tag themselves.
+    if (getMediaKindFromType(asset.type) === 'image') {
+      insertTextAtCursor(asset.path);
+      return;
+    }
+
     const snippet = buildMediaSnippetFromAsset(asset);
     if (snippet) {
       insertTextAtCursor(`${snippet}\n`);
@@ -218,23 +240,22 @@ const HTMLIDE = () => {
     }
   };
 
-  const handleEditorKeyDown = (event) => {
-    if (event.key === 'Tab') {
-      event.preventDefault();
+  const { applyEdit, handleKeyDown: handleEditorKeyDown } = useCodeEditor({
+    textareaRef,
+    setValue: setHtmlCode,
+    onCursorChange: setCursorPosition,
+  });
 
-      const textarea = event.target;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const tabSpaces = '    ';
-
-      const updatedCode = `${htmlCode.slice(0, start)}${tabSpaces}${htmlCode.slice(end)}`;
-      setHtmlCode(updatedCode);
-
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + tabSpaces.length;
-      }, 0);
-    }
-  };
+  const {
+    entries: consoleEntries,
+    open: consoleOpen,
+    errorCount: consoleErrors,
+    warnCount: consoleWarnings,
+    handleConsoleMessage,
+    closeConsole,
+    toggleConsole,
+    clearConsole,
+  } = usePreviewConsole();
 
   const handleReset = () => {
     if (confirm('ඔබට විශ්වාසද? ඔබගේ සියලුම කේත මකනු ඇත.')) {
@@ -277,7 +298,7 @@ const HTMLIDE = () => {
   return (
     <div className="flex h-full bg-slate-50">
       {/* Main Editor Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col">
         {/* Toolbar */}
         <div className={`${themeClasses.container} border-b px-4 py-2 flex items-center justify-between`}>
           <div className="flex items-center gap-4">
@@ -304,6 +325,13 @@ const HTMLIDE = () => {
                 <Settings className="w-4 h-4" />
                 සැකසුම්
               </button>
+
+              <ConsoleToggleButton
+                open={consoleOpen}
+                entryCount={consoleEntries.length}
+                errorCount={consoleErrors}
+                onClick={toggleConsole}
+              />
             </div>
           </div>
 
@@ -340,7 +368,7 @@ const HTMLIDE = () => {
               මාධ්‍ය උඩුගත කරන්න
               <input
                 type="file"
-                accept="image/*,video/*,audio/*"
+                accept={MEDIA_ACCEPT}
                 multiple
                 onChange={handleMediaUpload}
                 className="hidden"
@@ -409,68 +437,81 @@ const HTMLIDE = () => {
           </div>
         )}
 
-        {/* Editor and Preview */}
-        <div className="flex-1 flex">
-          {/* Code Editor */}
-          <div
-            className={`${showPreview ? 'w-1/2' : 'w-full'} flex flex-col border-r ${themeClasses.container} relative`}
-            {...dropHandlers}
-          >
-            <div className={`${themeClasses.container} px-4 py-2 text-sm font-medium`}>
-              index.html
-            </div>
-            <div className="flex-1 relative overflow-hidden">
-              {isDraggingOver && (
-                <div className="absolute inset-0 z-30 bg-blue-500/20 border-2 border-dashed border-blue-500 flex items-center justify-center pointer-events-none">
-                  <div className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
-                    <Upload className="w-5 h-5" />
-                    <span>මෙහි media ගොනු දමන්න</span>
-                  </div>
-                </div>
-              )}
+        {/* Editor + Console | Preview (all resizable) */}
+        <div className="flex-1 min-h-0 flex">
+          <SplitPane direction="horizontal" storageKey="html-ide-split-preview" showSecond={showPreview}>
+            <SplitPane
+              direction="vertical"
+              initialSize={70}
+              minSize={20}
+              maxSize={90}
+              storageKey="html-ide-split-console"
+              showSecond={consoleOpen}
+            >
               <div
-                ref={lineNumbersRef}
-                className={`absolute left-0 top-0 bottom-0 w-12 border-r border-slate-700/40 text-right pr-2 pt-4 select-none pointer-events-none overflow-y-scroll z-20 ${themeClasses.editor}`}
-                style={{
-                  fontSize: `${Math.max(fontSize - 2, 11)}px`,
-                  lineHeight: '1.5',
-                  scrollbarWidth: 'none',
-                  msOverflowStyle: 'none'
-                }}
+                className={`flex-1 min-h-0 flex flex-col ${themeClasses.container} relative`}
+                {...dropHandlers}
               >
-                {htmlCode.split('\n').map((_, i) => (
-                  <div key={i} className="h-[1.5em] leading-[1.5]">
-                    {i + 1}
+                <div className={`${themeClasses.container} px-4 py-2 text-sm font-medium`}>
+                  index.html
+                </div>
+                <div className="flex-1 relative overflow-hidden">
+                  {isDraggingOver && (
+                    <div className="absolute inset-0 z-30 bg-blue-500/20 border-2 border-dashed border-blue-500 flex items-center justify-center pointer-events-none">
+                      <div className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
+                        <Upload className="w-5 h-5" />
+                        <span>මෙහි media ගොනු දමන්න</span>
+                      </div>
+                    </div>
+                  )}
+                  <div
+                    ref={lineNumbersRef}
+                    className={`absolute left-0 top-0 bottom-0 w-12 border-r border-slate-700/40 text-right pr-2 pt-4 select-none pointer-events-none overflow-y-scroll z-20 ${themeClasses.editor}`}
+                    style={{
+                      fontSize: `${Math.max(fontSize - 2, 11)}px`,
+                      lineHeight: '1.5',
+                      scrollbarWidth: 'none',
+                      msOverflowStyle: 'none'
+                    }}
+                  >
+                    {htmlCode.split('\n').map((_, i) => (
+                      <div key={i} className="h-[1.5em] leading-[1.5]">
+                        {i + 1}
+                      </div>
+                    ))}
                   </div>
-                ))}
+                  <textarea
+                    ref={textareaRef}
+                    value={htmlCode}
+                    onChange={(e) => setHtmlCode(e.target.value)}
+                    onScroll={syncLineNumbersScroll}
+                    wrap="off"
+                    onKeyDown={handleEditorKeyDown}
+                    onKeyUp={handleCursorUpdate}
+                    onClick={handleCursorUpdate}
+                    className={`absolute inset-0 z-10 w-full h-full pl-16 pr-4 py-4 font-mono resize-none focus:outline-none ${themeClasses.editor}`}
+                    style={{ fontSize: `${fontSize}px`, lineHeight: '1.5' }}
+                    spellCheck={false}
+                    placeholder="මෙතැන ඔබගේ HTML කේතය ලියන්න..."
+                  />
+                  <HtmlAutocomplete
+                    value={htmlCode}
+                    cursorPosition={cursorPosition}
+                    textareaRef={textareaRef}
+                    onAccept={applyEdit}
+                  />
+                </div>
               </div>
-              <textarea
-                ref={textareaRef}
-                value={htmlCode}
-                onChange={(e) => setHtmlCode(e.target.value)}
-                onScroll={syncLineNumbersScroll}
-                onKeyDown={handleEditorKeyDown}
-                onKeyUp={handleCursorUpdate}
-                onClick={handleCursorUpdate}
-                className={`absolute inset-0 z-10 w-full h-full pl-16 pr-4 py-4 font-mono resize-none focus:outline-none ${themeClasses.editor}`}
-                style={{ fontSize: `${fontSize}px`, lineHeight: '1.5' }}
-                spellCheck={false}
-                placeholder="මෙතැන ඔබගේ HTML කේතය ලියන්න..."
+              <ConsolePanel
+                entries={consoleEntries}
+                errorCount={consoleErrors}
+                warnCount={consoleWarnings}
+                onClear={clearConsole}
+                onClose={closeConsole}
               />
-              <HtmlAutocomplete
-                value={htmlCode}
-                cursorPosition={cursorPosition}
-                textareaRef={textareaRef}
-              />
-            </div>
-          </div>
-
-          {/* Preview Panel */}
-          {showPreview && (
-            <div className="w-1/2 flex flex-col">
-              <BrowserPreview html={previewHtml} theme={theme} />
-            </div>
-          )}
+            </SplitPane>
+            <BrowserPreview html={previewHtml} theme={theme} onConsoleMessage={handleConsoleMessage} />
+          </SplitPane>
         </div>
 
         {/* Status Bar */}

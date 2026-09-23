@@ -36,12 +36,112 @@ export const saveMediaAssets = (assets) => {
   localStorage.setItem(MEDIA_ASSETS_STORAGE_KEY, JSON.stringify(assets));
 };
 
+// Only well-formed base64 media data URLs are ever put into the preview document.
+const SAFE_DATA_URL = /^data:(image|video|audio)\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+$/i;
+
 export const getMediaAssetMap = () => {
-  return new Map(loadMediaAssets().map((asset) => [asset.path, asset.dataUrl]));
+  return new Map(
+    loadMediaAssets()
+      .filter((asset) => typeof asset?.path === 'string' && SAFE_DATA_URL.test(asset.dataUrl || ''))
+      .map((asset) => [asset.path, asset.dataUrl])
+  );
 };
 
 export const isSupportedMediaFile = (file) =>
   Boolean(file && (file.type.startsWith('image/') || file.type.startsWith('video/') || file.type.startsWith('audio/')));
+
+// ---- Upload validation -------------------------------------------------------------
+// Files are checked by their real content (magic bytes), not just the name or the
+// browser-reported type, so a renamed .exe/.html/.svg cannot get in as an "image".
+// SVG is not accepted because it can contain scripts.
+
+const MB = 1024 * 1024;
+const MAX_FILES_PER_UPLOAD = 10;
+const MAX_SIZE = { image: 2 * MB, video: 3 * MB, audio: 3 * MB };
+const MAX_IMAGE_DIMENSION = 8000;
+
+const hasBytes = (bytes, offset, expected) => expected.every((value, i) => bytes[offset + i] === value);
+const hasText = (bytes, offset, text) => hasBytes(bytes, offset, [...text].map((c) => c.charCodeAt(0)));
+
+const FORMATS = [
+  { mime: 'image/png', exts: ['png'], test: (b) => hasBytes(b, 0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) },
+  { mime: 'image/jpeg', exts: ['jpg', 'jpeg'], test: (b) => hasBytes(b, 0, [0xff, 0xd8, 0xff]) },
+  { mime: 'image/gif', exts: ['gif'], test: (b) => hasText(b, 0, 'GIF87a') || hasText(b, 0, 'GIF89a') },
+  { mime: 'image/webp', exts: ['webp'], test: (b) => hasText(b, 0, 'RIFF') && hasText(b, 8, 'WEBP') },
+  { mime: 'image/bmp', exts: ['bmp'], test: (b) => hasText(b, 0, 'BM') },
+  { mime: 'video/mp4', exts: ['mp4', 'm4v'], test: (b) => hasText(b, 4, 'ftyp') },
+  { mime: 'video/webm', exts: ['webm'], test: (b) => hasBytes(b, 0, [0x1a, 0x45, 0xdf, 0xa3]) },
+  { mime: 'video/ogg', exts: ['ogv'], test: (b) => hasText(b, 0, 'OggS') },
+  { mime: 'audio/ogg', exts: ['ogg', 'oga'], test: (b) => hasText(b, 0, 'OggS') },
+  { mime: 'audio/wav', exts: ['wav'], test: (b) => hasText(b, 0, 'RIFF') && hasText(b, 8, 'WAVE') },
+  {
+    mime: 'audio/mpeg',
+    exts: ['mp3'],
+    test: (b) => hasText(b, 0, 'ID3') || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0),
+  },
+];
+
+// For <input accept>: the file picker only offers the formats we accept.
+export const MEDIA_ACCEPT = FORMATS.flatMap((f) => f.exts.map((e) => `.${e}`)).join(',');
+
+const formatSizeMb = (bytes) => `${(bytes / MB).toFixed(1)} MB`;
+
+const checkImageDecodes = (file) =>
+  new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(
+        img.naturalWidth > 0 &&
+          img.naturalWidth <= MAX_IMAGE_DIMENSION &&
+          img.naturalHeight <= MAX_IMAGE_DIMENSION
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(false);
+    };
+    img.src = url;
+  });
+
+// Returns `{ ok: true, mime, kind }` or `{ ok: false, reason }`.
+export const validateMediaFile = async (file) => {
+  if (!file || !file.size) return { ok: false, reason: 'empty file' };
+
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const candidates = FORMATS.filter((f) => f.exts.includes(ext));
+  if (!candidates.length) {
+    return { ok: false, reason: `.${ext} files are not allowed (allowed: ${MEDIA_ACCEPT.split(',').join(' ')})` };
+  }
+
+  let header;
+  try {
+    header = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  } catch {
+    return { ok: false, reason: 'could not read the file' };
+  }
+
+  const format = candidates.find((f) => f.test(header));
+  if (!format) return { ok: false, reason: `the content is not a real .${ext} file` };
+
+  const kind = getMediaKindFromType(format.mime);
+  if (file.size > MAX_SIZE[kind]) {
+    return { ok: false, reason: `too large (${formatSizeMb(file.size)}, max ${formatSizeMb(MAX_SIZE[kind])})` };
+  }
+
+  if (kind === 'image' && !(await checkImageDecodes(file))) {
+    return { ok: false, reason: `the image is damaged or larger than ${MAX_IMAGE_DIMENSION}px` };
+  }
+
+  return { ok: true, mime: format.mime, kind };
+};
+
+const reportRejectedFiles = (rejected) => {
+  if (!rejected.length || typeof window === 'undefined') return;
+  const lines = rejected.map(({ name, reason }) => `• ${name}: ${reason}`);
+  window.alert(`පහත ගොනු උඩුගත කළ නොහැක / These files were not uploaded:\n\n${lines.join('\n')}`);
+};
 
 export const getMediaKind = (file) => {
   if (!file) return null;
@@ -83,15 +183,35 @@ const makeUniqueAssetPath = (basePath, existingPaths) => {
   return candidate;
 };
 
+// Validates, stores and returns the accepted files. Rejected files are reported to the user.
 export const registerMediaFiles = async (files) => {
   const currentAssets = loadMediaAssets();
   const existingPaths = new Set(currentAssets.map((asset) => asset.path));
   const addedAssets = [];
+  const rejected = [];
 
-  for (const file of files) {
-    if (!isSupportedMediaFile(file)) continue;
+  const list = Array.from(files || []);
+  list.slice(MAX_FILES_PER_UPLOAD).forEach((file) =>
+    rejected.push({ name: file.name, reason: `only ${MAX_FILES_PER_UPLOAD} files can be uploaded at once` })
+  );
 
-    const dataUrl = await readFileAsDataUrl(file);
+  for (const file of list.slice(0, MAX_FILES_PER_UPLOAD)) {
+    const check = await validateMediaFile(file);
+    if (!check.ok) {
+      rejected.push({ name: file.name, reason: check.reason });
+      continue;
+    }
+
+    let dataUrl;
+    try {
+      // Store with the verified type rather than whatever the browser guessed from the name.
+      const raw = await readFileAsDataUrl(file);
+      dataUrl = `data:${check.mime};base64,${raw.slice(raw.indexOf(',') + 1)}`;
+    } catch {
+      rejected.push({ name: file.name, reason: 'could not read the file' });
+      continue;
+    }
+
     const safeName = sanitizeFileName(file.name);
     const basePath = `assets/${safeName}`;
     const path = makeUniqueAssetPath(basePath, existingPaths);
@@ -99,8 +219,8 @@ export const registerMediaFiles = async (files) => {
     existingPaths.add(path);
     addedAssets.push({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      name: file.name,
-      type: file.type,
+      name: file.name.replace(/[<>"'`&]/g, ''),
+      type: check.mime,
       path,
       dataUrl,
       size: file.size,
@@ -109,9 +229,18 @@ export const registerMediaFiles = async (files) => {
   }
 
   if (addedAssets.length) {
-    saveMediaAssets([...currentAssets, ...addedAssets]);
+    try {
+      saveMediaAssets([...currentAssets, ...addedAssets]);
+    } catch {
+      // localStorage is full (about 5 MB per site).
+      addedAssets.forEach((asset) =>
+        rejected.push({ name: asset.name, reason: 'storage is full – delete some files in Media Library first' })
+      );
+      addedAssets.length = 0;
+    }
   }
 
+  reportRejectedFiles(rejected);
   return addedAssets;
 };
 
