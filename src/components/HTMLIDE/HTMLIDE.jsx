@@ -466,16 +466,18 @@ const HTMLIDE = () => {
                   )}
                   <div
                     ref={lineNumbersRef}
-                    className={`absolute left-0 top-0 bottom-0 w-12 border-r border-slate-700/40 text-right pr-2 pt-4 select-none pointer-events-none overflow-y-scroll z-20 ${themeClasses.editor}`}
+                    className={`absolute left-0 top-0 bottom-0 w-12 border-r border-slate-700/40 text-right pr-2 pt-4 font-mono select-none pointer-events-none overflow-y-scroll z-20 ${themeClasses.editor}`}
                     style={{
                       fontSize: `${Math.max(fontSize - 2, 11)}px`,
-                      lineHeight: '1.5',
+                      // Extra room for the textarea's horizontal scrollbar so both can scroll equally far
+                      paddingBottom: 'calc(1rem + 20px)',
                       scrollbarWidth: 'none',
                       msOverflowStyle: 'none'
                     }}
                   >
+                    {/* Row height must match the textarea's line height (fontSize * 1.5), not the smaller gutter font */}
                     {htmlCode.split('\n').map((_, i) => (
-                      <div key={i} className="h-[1.5em] leading-[1.5]">
+                      <div key={i} style={{ height: `${fontSize * 1.5}px`, lineHeight: `${fontSize * 1.5}px` }}>
                         {i + 1}
                       </div>
                     ))}
