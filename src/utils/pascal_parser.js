@@ -196,10 +196,11 @@ var pascal_parser = (function () {
                     this.$ = { node: 'subrange', start: { node: 'constant', stype: 'variable', val: $$[$0 - 2] }, end: { node: 'constant', stype: 'variable', val: $$[$0] } };
                     break;
                 case 47:
-                    this.$ = { node: 'constant', stype: 'INTEGER', val: $$[$0].val };
+                    // operand may be an {val} node, a bare number, or an expr node (negative bounds)
+                    this.$ = { node: 'constant', stype: 'INTEGER', val: ($$[$0] && 'val' in $$[$0]) ? $$[$0].val : $$[$0] };
                     break;
                 case 48:
-                    this.$ = { node: 'constant', stype: 'CHARACTER', val: $$[$0].val };
+                    this.$ = { node: 'constant', stype: 'CHARACTER', val: ($$[$0] && 'val' in $$[$0]) ? $$[$0].val : $$[$0] };
                     break;
                 case 51:
                     this.$ = [];

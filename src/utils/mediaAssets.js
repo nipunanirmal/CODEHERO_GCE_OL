@@ -262,9 +262,12 @@ export const resolveMediaPathsInHtml = (html, assetMap = getMediaAssetMap()) => 
   return output;
 };
 
+// Attributes are interpolated into an HTML string — always escape.
+const escapeAttr = (value) => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 export const buildMediaSnippetFromAsset = (asset) => {
   const kind = getMediaKindFromType(asset.type);
-  const altText = asset.name.replace(/\.[^.]+$/, '') || 'media';
+  const altText = escapeAttr(asset.name.replace(/\.[^.]+$/, '') || 'media');
 
   if (kind === 'image') {
     return `<img src="${asset.path}" alt="${altText}" style="max-width: 100%; height: auto;">`;
@@ -289,7 +292,7 @@ export const buildMediaSnippetFromAsset = (asset) => {
 
 export const buildMediaSnippet = (file, assetPath) => {
   const kind = getMediaKind(file);
-  const altText = file.name.replace(/\.[^.]+$/, '') || 'media';
+  const altText = escapeAttr(file.name.replace(/\.[^.]+$/, '') || 'media');
 
   if (kind === 'image') {
     return `<img src="${assetPath}" alt="${altText}" style="max-width: 100%; height: auto;">`;

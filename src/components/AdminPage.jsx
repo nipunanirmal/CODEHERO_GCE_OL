@@ -2,8 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Key, Cpu, CheckCircle2, AlertTriangle, Eye, EyeOff, Zap, Server, Lock, LogIn, TestTube2, Save } from 'lucide-react';
 import { getAIConfig, saveAIConfig, explainError } from '../utils/aiErrorExplainer';
 
-// ⚠️ Hardcoded admin password — change this before deploying to VPS
-const ADMIN_PASSWORD = 'codehero2025';
+// Admin gate: the plaintext password is no longer in the bundle — only its
+// SHA-256 digest. NOTE: client-side gating can never be fully secure (the gate
+// is bypassable via `sessionStorage.admin_unlocked`); it only keeps casual
+// users out. Real protection needs a backend. To set a new password, replace
+// the digest with the SHA-256 of your chosen password:
+//   echo -n "newpassword" | sha256sum
+const ADMIN_PASSWORD_SHA256 = '48afe639704a73e53e7021102e4a29e44f14b1cd8bb806f9111d2fa138df0e36';
+
+async function sha256Hex(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 // ─── Password Gate ────────────────────────────────────────────────────────────
 function PasswordGate({ onUnlock }) {
@@ -11,9 +21,9 @@ function PasswordGate({ onUnlock }) {
     const [error, setError] = useState(false);
     const [showPw, setShowPw] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (input === ADMIN_PASSWORD) {
+        if (await sha256Hex(input) === ADMIN_PASSWORD_SHA256) {
             sessionStorage.setItem('admin_unlocked', '1');
             onUnlock();
         } else {
@@ -112,9 +122,8 @@ function AdminPanel() {
         setTesting(true);
         setTestResult(null);
         try {
-            // Temporarily save current form state for test
-            saveAIConfig(config);
-            const result = await explainError('[ERROR]: Division by zero', 'begin\n  x := 10 div 0;\nend.');
+            // Test the in-memory form config — do NOT persist it before "Save".
+            const result = await explainError('[ERROR]: Division by zero', 'begin\n  x := 10 div 0;\nend.', config);
             setTestResult({ ok: true, message: result });
         } catch (err) {
             setTestResult({ ok: false, message: err.message });

@@ -43,10 +43,12 @@ export function saveAIConfig(config) {
  * Explain a Pascal error using the configured AI provider.
  * @param {string} errorMessage - The error message (e.g. "[ERROR]: Division by zero")
  * @param {string} code - The Pascal source code that caused the error
+ * @param {object} [configOverride] - Use this config instead of localStorage
+ *   (e.g. the admin panel's "Test" button — lets users test WITHOUT saving first).
  * @returns {Promise<string>} - A simple explanation string
  */
-export async function explainError(errorMessage, code) {
-    const config = getAIConfig();
+export async function explainError(errorMessage, code, configOverride) {
+    const config = configOverride || getAIConfig();
 
     if (!config) {
         return '⚠️ AI provider configured නෑ. Admin panel (/admin) ගිහිල්ලා configure කරන්න.';

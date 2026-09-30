@@ -9,6 +9,11 @@ export class PascalASTInterpreter {
     constructor() {
         this.variables = {};
         this.variableTypes = {}; // Store declared types for validation
+        this.typeDefs = {};      // user-defined types (record/enum/subrange/array)
+        this.enumLiterals = new Set(); // literals declared by enum types
+        this.procDecls = {};     // user procedures
+        this.funcDecls = {};     // user functions
+        this.callDepth = 0;
         this.outputCallback = null;
         this.inputCallback = null;
         this.isRunning = false;
@@ -29,6 +34,12 @@ export class PascalASTInterpreter {
      */
     async runInteractive(code, onOutput, onInput) {
         this.variables = {}; // Reset variables
+        this.variableTypes = {};
+        this.typeDefs = {};
+        this.enumLiterals = new Set();
+        this.procDecls = {};
+        this.funcDecls = {};
+        this.callDepth = 0;
         this.stepCount = 0;
         this.outputCallback = onOutput;
         this.inputCallback = onInput;
@@ -39,11 +50,15 @@ export class PascalASTInterpreter {
             // We imported { parser } directly.
             const p = parser;
 
-            const ast = p.parse(code);
+            const ast = p.parse(this.preprocessCode(code));
             await this.visit(ast);
         } catch (e) {
-            this.logOutput(`[ERROR]: ${e.message}\n`);
-            console.error(e);
+            if (e && (e.__flow === 'halt' || e.__flow === 'exit')) {
+                // halt/exit at top level — clean stop, not an error
+            } else {
+                this.logOutput(`[ERROR]: ${e.message}\n`);
+                console.error(e);
+            }
         } finally {
             this.isRunning = false;
         }
@@ -57,6 +72,12 @@ export class PascalASTInterpreter {
      */
     async runTrace(code, inputContext = {}) {
         this.variables = {};
+        this.variableTypes = {};
+        this.typeDefs = {};
+        this.enumLiterals = new Set();
+        this.procDecls = {};
+        this.funcDecls = {};
+        this.callDepth = 0;
         for (const k in inputContext) {
             this.variables[k.toLowerCase()] = inputContext[k];
         }
@@ -95,7 +116,7 @@ export class PascalASTInterpreter {
         this.inputCallback = async () => 0;
 
         try {
-            const ast = parser.parse(code);
+            const ast = parser.parse(this.preprocessCode(code));
             await this.visit(ast);
 
             // Add a final step for the "end." line (or just end of execution)
@@ -106,12 +127,7 @@ export class PascalASTInterpreter {
             // Avoid duplicate if last statement was effectively the last line
             if (this.lastLineRecorded !== lastLineIndex) {
                 // Manually push the final state
-                const currentVars = {};
-                for (const k in this.variables) {
-                    if (Object.prototype.hasOwnProperty.call(this.variables, k)) {
-                        currentVars[k] = this.variables[k];
-                    }
-                }
+                const currentVars = this._allVars();
                 this.traceSteps.push({
                     lineIndex: lastLineIndex,
                     text: "",
@@ -121,8 +137,12 @@ export class PascalASTInterpreter {
             }
 
         } catch (e) {
-            this.currentLogs.push(`[ERROR]: ${e.message}`);
-            this.recordError(e);
+            if (e && (e.__flow === 'halt' || e.__flow === 'exit')) {
+                // clean stop
+            } else {
+                this.currentLogs.push(`[ERROR]: ${e.message}`);
+                this.recordError(e);
+            }
         } finally {
             this.isRunning = false;
             this.traceMode = false;
@@ -146,11 +166,51 @@ export class PascalASTInterpreter {
 
     /**
      * Preprocess Pascal code to support legacy syntax quirks or formatting.
-     * Transforms `write(x:w:p)` -> `write(__fmt(x, w, p))`
+     * - Strips `//` line comments (Free Pascal style) without touching '//' inside strings
+     * - Transforms `write(x:w:p)` -> `write(__fmt(x, w, p))`
      */
     preprocessCode(code) {
+        // Strip // comments, respecting 'string literals' and { } / (* *) comments
+        let stripped = '';
+        let i = 0;
+        const n = code.length;
+        while (i < n) {
+            const c = code[i], nx = code[i + 1];
+            if (c === "'") {
+                const start = i;
+                i++;
+                while (i < n && code[i] !== "'") i++;
+                stripped += code.slice(start, i + 1);
+                i++;
+                continue;
+            }
+            if (c === '{') {
+                const e = code.indexOf('}', i);
+                const end = e === -1 ? n : e + 1;
+                stripped += code.slice(i, end);
+                i = end;
+                continue;
+            }
+            if (c === '(' && nx === '*') {
+                const e = code.indexOf('*)', i + 2);
+                const end = e === -1 ? n : e + 2;
+                stripped += code.slice(i, end);
+                i = end;
+                continue;
+            }
+            if (c === '/' && nx === '/') {
+                const e = code.indexOf('\n', i);
+                const end = e === -1 ? n : e;
+                stripped += ' '.repeat(end - i); // keep column alignment for error arrows
+                i = end;
+                continue;
+            }
+            stripped += c;
+            i++;
+        }
+
         // Simple scanner to identify write/writeln calls and transform args
-        return code.replace(/\b(write|writeln)\s*\(([^)]+)\)/gi, (match, func, args) => {
+        return stripped.replace(/\b(write|writeln)\s*\(([^)]+)\)/gi, (match, func, args) => {
             // Split args by comma, ignoring commas in quotes
             const params = [];
             let currentParam = "";
@@ -277,8 +337,10 @@ export class PascalASTInterpreter {
         }
     }
 
+    static PARENT_SCOPE = Symbol('pascalParentScope');
+
     // Known valid Pascal types
-    static VALID_TYPES = new Set(['INTEGER', 'REAL', 'STRING', 'BOOLEAN', 'CHAR', 'BYTE', 'WORD', 'LONGINT', 'SHORTINT', 'ARRAY']);
+    static VALID_TYPES = new Set(['INTEGER', 'REAL', 'STRING', 'BOOLEAN', 'CHAR', 'CHARACTER', 'BYTE', 'WORD', 'LONGINT', 'SHORTINT', 'ARRAY']);
 
     // Known valid Pascal built-in procedures
     static VALID_PROCS = new Set(['WRITELN', 'WRITE', 'READLN', 'READ']);
@@ -292,44 +354,102 @@ export class PascalASTInterpreter {
         'RED': 'read', 'RAED': 'read',
     };
 
+    // Initialize a storage value for a resolved Pascal type node.
+    // Arrays carry { lo, hi, data } so bounds checking is real.
+    // word/longint/shortint are not lexer keywords — they arrive as NAMED ids.
+    static NAMED_NUMERIC_TYPES = new Set(['word', 'longint', 'shortint', 'cardinal', 'smallint']);
+
+    // Bounds/ends may be numbers, {val} constants, or full expr nodes.
+    async _constVal(v) {
+        let val = v;
+        if (v && typeof v === 'object' && 'node' in v) val = await this.evaluate(v);
+        else if (v && typeof v === 'object' && 'val' in v) val = v.val;
+        if (val === null || val === undefined || (typeof val === 'object')) {
+            throw new Error('Invalid or unsupported bound in type declaration (negative array bounds are not supported).');
+        }
+        return Number(val);
+    }
+
+    async _initValueForType(type) {
+        if (!type || !type.name) return 0;
+        const name = type.name.toUpperCase();
+        if (name === 'STRING' || name === 'CHAR' || name === 'CHARACTER') return '';
+        if (name === 'BOOLEAN') return false;
+        if (name === 'SUBRANGE') return 0;
+        if (name === 'ARRAY') {
+            // index is a subrange {start,end} (numbers or constant nodes)
+            const lo = await this._constVal(type.index?.start ?? 0);
+            const hi = await this._constVal(type.index?.end ?? lo - 1);
+            const size = Math.max(0, hi - lo + 1);
+            if (!Number.isFinite(size) || size > 1e6) throw new Error(`Array too large or invalid range (${lo}..${hi}).`);
+            return { __pascalArray: true, lo, hi, data: new Array(size).fill(await this._initValueForType(type.type)) };
+        }
+        if (name === 'NAMED') {
+            const idKey = type.id?.toLowerCase();
+            if (PascalASTInterpreter.NAMED_NUMERIC_TYPES.has(idKey)) return 0;
+            const def = this.typeDefs[idKey];
+            if (!def) return 0; // error raised by caller validation
+            const defName = def.name?.toUpperCase();
+            if (defName === 'RECORD') {
+                const fields = {};
+                for (const comp of def.sections || []) {
+                    // comp: {node:'component', id, type}
+                    fields[comp.id.toLowerCase()] = await this._initValueForType(comp.type);
+                }
+                return { __pascalRecord: true, fields };
+            }
+            if (defName === 'ENUMERATION') return '';
+            return this._initValueForType(def);
+        }
+        return 0; // INTEGER, REAL, BYTE
+    }
+
+    _describeType(type) {
+        if (!type || !type.name) return 'UNKNOWN';
+        const name = type.name.toUpperCase();
+        if (name === 'ARRAY') {
+            const lo = type.index?.start?.val ?? type.index?.start ?? '?';
+            const hi = type.index?.end?.val ?? type.index?.end ?? '?';
+            return `ARRAY_${lo}..${hi}_OF_${this._describeType(type.type)}`;
+        }
+        if (name === 'NAMED') return `NAMED:${type.id}`;
+        return name;
+    }
+
     async visitDeclarations(decls) {
         if (!decls) return;
         for (const decl of decls) {
             if (decl.node === 'var_decl') {
-                // Initialize variable to 0 or empty string based on type
-                // decl.type.name ('INTEGER', 'STRING', etc.)
                 const name = decl.id.toLowerCase(); // Case-insensitive vars
-                this.variables[name] = 0;  // Default value
-
-                // Store declared type — validate it!
-                if (decl.type && decl.type.name) {
-                    const typeName = decl.type.name.toUpperCase();
-                    if (!PascalASTInterpreter.VALID_TYPES.has(typeName)) {
-                        throw new Error(`Unknown type '${decl.type.name}' for variable '${decl.id}'. Did you mean 'integer', 'string', 'real', or 'boolean'?`);
-                    }
-                    if (typeName === 'ARRAY') {
-                        // e.g. decl.type.type.name might be 'INTEGER'
-                        const baseType = decl.type.type ? decl.type.type.name.toUpperCase() : 'UNKNOWN';
-                        this.variableTypes[name] = `ARRAY_${baseType}`;
-                        this.variables[name] = [];
-                    } else {
-                        this.variableTypes[name] = typeName;
-                        if (typeName === 'STRING') {
-                            this.variables[name] = "";
-                        }
-                    }
+                const t = decl.type;
+                const typeName = (t?.name || '').toUpperCase();
+                if (typeName === 'NAMED' && !this.typeDefs[t.id?.toLowerCase()] && !PascalASTInterpreter.NAMED_NUMERIC_TYPES.has(t.id?.toLowerCase())) {
+                    throw new Error(`Unknown type '${t.id}' for variable '${decl.id}'. Did you mean 'integer', 'string', 'real', or 'boolean'?`);
                 }
+                if (typeName && typeName !== 'NAMED' && !PascalASTInterpreter.VALID_TYPES.has(typeName) && typeName !== 'SUBRANGE' && typeName !== 'ENUMERATION' && typeName !== 'RECORD') {
+                    throw new Error(`Unknown type '${t.name}' for variable '${decl.id}'. Did you mean 'integer', 'string', 'real', or 'boolean'?`);
+                }
+                this.variableTypes[name] = this._describeType(t);
+                this.variables[name] = await this._initValueForType(t);
             } else if (decl.node === 'const_decl') {
                 // CONST pi = 3.14;
                 const name = decl.id.toLowerCase();
-                // node.expr holds the value node, e.g., { node: 'real', val: 3.14 }
-                // We need to evaluate it? Or usually it's a literal/constant expression.
-                // Let's assume simplest case: evaluate it.
                 const val = await this.evaluate(decl.expr);
                 this.variables[name] = val;
-                // Constants typically don't change type, but we could infer/store it if needed.
                 this.variableTypes[name] = 'CONSTANT';
+            } else if (decl.node === 'type_decl') {
+                // TYPE Dice = 1..6; Point = record ... end; Color = (red, green)
+                const name = decl.id.toLowerCase();
+                this.typeDefs[name] = decl.type;
+                if (decl.type?.name?.toUpperCase() === 'ENUMERATION') {
+                    for (const id of decl.type.ids || []) this.enumLiterals.add(String(id).toLowerCase());
+                }
+            } else if (decl.node === 'proc_decl') {
+                this.procDecls[decl.id.toLowerCase()] = decl;
+            } else if (decl.node === 'func_decl') {
+                this.funcDecls[decl.id.toLowerCase()] = decl;
             }
+            // use_decl: accepted silently — units like crt are no-ops here
         }
     }
 
@@ -340,34 +460,202 @@ export class PascalASTInterpreter {
         }
     }
 
+    // ── Variable access helpers ─────────────────────────────────────────────
+    // Scopes chain via a Symbol link so 'constructor' etc. can't false-positive.
+    // A cell may be a {__ref:{vars,key}} link created for VAR params.
+
+    _lookupScope(key) {
+        let s = this.variables;
+        while (s && !(key in s)) s = s[PascalASTInterpreter.PARENT_SCOPE];
+        return s;
+    }
+
+    _getVar(key) {
+        const s = this._lookupScope(key);
+        if (!s) return undefined;
+        let v = s[key];
+        while (v && typeof v === 'object' && v.__ref) v = v.__ref.vars[v.__ref.key];
+        return v;
+    }
+
+    _setVar(key, val) {
+        const s = this._lookupScope(key) || this.variables;
+        let holder = s, k = key;
+        while (holder[k] && typeof holder[k] === 'object' && holder[k].__ref) {
+            holder = holder[k].__ref.vars;
+            k = holder[k].__ref.key;
+        }
+        holder[k] = val;
+    }
+
+    _hasVar(key) { return !!this._lookupScope(key); }
+
+    _allVars() {
+        // Merge scope chain for display (innermost wins).
+        const out = {};
+        const chain = [];
+        let s = this.variables;
+        while (s) { chain.unshift(s); s = s[PascalASTInterpreter.PARENT_SCOPE]; }
+        for (const scope of chain) {
+            for (const k of Object.keys(scope)) out[k] = this._getVar(k);
+        }
+        return out;
+    }
+
+    _throwUndefined(origName, key) {
+        const suggestion = this._suggestVariable(key);
+        const hint = suggestion ? ` Did you mean '${suggestion}'?` : ' Declare it in the var section.';
+        throw new Error(`Undefined variable '${origName}'.${hint}`);
+    }
+
+    // Resolve an lvalue AST node (variable / a[i] / p.field, any nesting) into
+    // {get(), set(v)} so arrays get bounds checks and strings stay immutable-safe.
+    async _resolveLValue(node) {
+        if (node.node === 'variable') {
+            const key = node.id.toLowerCase();
+            if (!this._hasVar(key)) this._throwUndefined(node.id, key);
+            return { get: () => this._getVar(key), set: (v) => this._setVar(key, v) };
+        }
+        if (node.node === 'expr_array_deref') {
+            const base = await this._resolveLValue(node.lvalue);
+            const idx = await this.evaluate(node.expr);
+            return {
+                get: () => this._indexGet(base.get(), idx),
+                set: (v) => this._indexSet(base.get(), idx, v),
+            };
+        }
+        if (node.node === 'expr_record_deref') {
+            const base = await this._resolveLValue(node.lvalue);
+            const field = String(node.component).toLowerCase();
+            return {
+                get: () => this._fieldGet(base.get(), field),
+                set: (v) => this._fieldSet(base.get(), field, v),
+            };
+        }
+        throw new Error('Invalid assignment target.');
+    }
+
+    _indexGet(container, idx) {
+        if (container && container.__pascalArray) {
+            const i = Number(idx);
+            if (!Number.isInteger(i) || i < container.lo || i > container.hi) {
+                throw new Error(`Array index ${idx} out of bounds (${container.lo}..${container.hi}).`);
+            }
+            return container.data[i - container.lo];
+        }
+        if (typeof container === 'string') {
+            const i = Number(idx);
+            if (!Number.isInteger(i) || i < 1 || i > container.length) {
+                throw new Error(`String index ${idx} out of bounds (1..${container.length}).`);
+            }
+            return container[i - 1]; // Pascal strings are 1-based
+        }
+        if (Array.isArray(container)) return container[idx] ?? 0;
+        throw new Error('Value is not indexable (not an array or string).');
+    }
+
+    _indexSet(container, idx, val) {
+        if (container && container.__pascalArray) {
+            const i = Number(idx);
+            if (!Number.isInteger(i) || i < container.lo || i > container.hi) {
+                throw new Error(`Array index ${idx} out of bounds (${container.lo}..${container.hi}).`);
+            }
+            container.data[i - container.lo] = val;
+            return;
+        }
+        if (Array.isArray(container)) { container[idx] = val; return; }
+        throw new Error('Value is not an array — cannot assign by index. (Assign to a whole string var instead.)');
+    }
+
+    _fieldGet(record, field) {
+        if (record && record.__pascalRecord) {
+            if (!(field in record.fields)) throw new Error(`Record has no field '${field}'.`);
+            return record.fields[field];
+        }
+        throw new Error(`Value is not a record — cannot access '.${field}'.`);
+    }
+
+    _fieldSet(record, field, val) {
+        if (record && record.__pascalRecord) {
+            if (!(field in record.fields)) throw new Error(`Record has no field '${field}'.`);
+            record.fields[field] = val;
+            return;
+        }
+        throw new Error(`Value is not a record — cannot assign to '.${field}'.`);
+    }
+
     async executeAssign(node) {
-        let isArray = false;
-        let target;
-        let index;
-        let origName;
-
-        if (node.lvalue.node === 'expr_array_deref') {
-            isArray = true;
-            target = node.lvalue.lvalue.id.toLowerCase();
-            index = await this.evaluate(node.lvalue.expr);
-            origName = node.lvalue.lvalue.id;
-        } else {
-            target = (node.lvalue.node === 'variable' ? node.lvalue.id : node.lvalue).toLowerCase();
-            origName = node.lvalue.id || target;
-        }
-
-        // Check if variable was declared
-        if (!(target in this.variables)) {
-            const suggestion = this._suggestVariable(target);
-            const hint = suggestion ? ` Did you mean '${suggestion}'?` : ' Declare it in the var section.';
-            throw new Error(`Undefined variable '${origName}'.${hint}`);
-        }
-
+        const target = await this._resolveLValue(node.lvalue);
         const val = await this.evaluate(node.expr);
-        if (isArray) {
-            this.variables[target][index] = val;
-        } else {
-            this.variables[target] = val;
+        target.set(this._derefValue(val));
+    }
+
+    _derefValue(v) {
+        while (v && typeof v === 'object' && v.__ref) v = v.__ref.vars[v.__ref.key];
+        return v;
+    }
+
+    // Flow sentinels thrown to unwind loops/routines.
+    static FLOW = {
+        break: () => ({ __flow: 'break' }),
+        continue: () => ({ __flow: 'continue' }),
+        exit: () => ({ __flow: 'exit' }),
+        halt: () => ({ __flow: 'halt' }),
+    };
+
+    // Call a user-declared procedure or function. Params bind into a child scope;
+    // VAR params become __ref links into the caller scope (pass by reference).
+    async _callUserRoutine(decl, argNodes, isFunc) {
+        if (this.callDepth >= 200) throw new Error('Maximum call depth (200) exceeded — infinite recursion?');
+        const declName = decl.id.toLowerCase();
+        const params = decl.fparams || [];
+
+        const savedVars = this.variables;
+        const savedTypes = this.variableTypes;
+        this.variables = Object.create(null);
+        this.variables[PascalASTInterpreter.PARENT_SCOPE] = savedVars;
+        this.variableTypes = {};
+        this.callDepth += 1;
+
+        try {
+            for (let i = 0; i < params.length; i++) {
+                const p = params[i];
+                const key = p.id.toLowerCase();
+                const argNode = argNodes[i];
+                if (p.var) {
+                    // By reference — the argument must be a plain variable.
+                    if (!argNode || argNode.node !== 'variable') {
+                        throw new Error(`Parameter '${p.id}' of '${decl.id}' is a var parameter — pass a variable, not an expression.`);
+                    }
+                    const targetScope = this._lookupScope(argNode.id.toLowerCase()) || savedVars;
+                    this.variables[key] = { __ref: { vars: targetScope, key: argNode.id.toLowerCase() } };
+                } else {
+                    this.variables[key] = argNode ? this._derefValue(await this.evaluate(argNode)) : 0;
+                }
+                this.variableTypes[key] = this._describeType(p.type);
+            }
+            // Function name + Result are assignable return-value slots.
+            if (isFunc) {
+                this.variables[declName] = 0;
+                this.variables['result'] = 0;
+            }
+            // Declarations inside the routine block (locals).
+            if (decl.block && decl.block !== 'forward') {
+                await this.visitDeclarations(decl.block.decls);
+                await this.visitStatements(decl.block.stmts);
+            }
+            if (isFunc) return this._getVar('result') || this._getVar(declName);
+            return undefined;
+        } catch (e) {
+            if (e && e.__flow === 'exit') {
+                if (isFunc) return this._getVar('result') || this._getVar(declName);
+                return undefined;
+            }
+            throw e;
+        } finally {
+            this.callDepth -= 1;
+            this.variables = savedVars;
+            this.variableTypes = savedTypes;
         }
     }
 
@@ -382,72 +670,110 @@ export class PascalASTInterpreter {
             }
             if (id === 'WRITELN') output += "\n";
             this.logOutput(output);
-        } else if (id === 'READLN' || id === 'READ') {
+            return;
+        }
+        if (id === 'READLN' || id === 'READ') {
             // Param should be variable
             if (node.call_params && node.call_params.length > 0) {
                 const targetNode = node.call_params[0];
-                let isArray = false;
-                let varName;
-                let index;
-                let displayId;
+                const target = await this._resolveLValue(targetNode);
+                const displayId = targetNode.id || targetNode.lvalue?.id || 'variable';
 
-                if (targetNode.node === 'expr_array_deref') {
-                    isArray = true;
-                    varName = targetNode.lvalue.id.toLowerCase();
-                    index = await this.evaluate(targetNode.expr);
-                    displayId = `${targetNode.lvalue.id}[${index}]`;
-                } else if (targetNode.node === 'variable') {
-                    varName = targetNode.id.toLowerCase();
-                    displayId = targetNode.id;
+                const declaredType = this.variableTypes[
+                    (targetNode.id || targetNode.lvalue?.id || '').toLowerCase()
+                ] || 'UNKNOWN';
+                const baseType = declaredType.startsWith('ARRAY_') ? declaredType.split('_').pop() : declaredType;
+
+                let inputVal = await this.requestInput();
+
+                // Validate Type
+                if (baseType === 'INTEGER') {
+                    if (!/^-?\d+$/.test(String(inputVal).trim())) {
+                        throw new Error(`Invalid input for INTEGER variable '${displayId}'. Expected a whole number, got '${inputVal}'.`);
+                    }
+                    inputVal = parseInt(inputVal, 10);
+                } else if (baseType === 'REAL') {
+                    if (isNaN(parseFloat(inputVal))) {
+                        throw new Error(`Invalid input for REAL variable '${displayId}'. Expected a number, got '${inputVal}'.`);
+                    }
+                    inputVal = parseFloat(inputVal);
                 }
 
-                if (varName) {
-                    // Check if variable is declared
-                    if (!(varName in this.variables)) {
-                        const suggestion = this._suggestVariable(varName);
-                        const hint = suggestion ? ` Did you mean '${suggestion}'?` : ' Declare it in the var section.';
-                        throw new Error(`Undefined variable '${displayId}'.${hint}`);
-                    }
-
-                    const declaredType = this.variableTypes[varName] || 'UNKNOWN';
-                    // Extract base type if it's an array
-                    const baseType = declaredType.startsWith('ARRAY_') ? declaredType.split('_')[1] : declaredType;
-
-                    let inputVal = await this.requestInput();
-
-                    // Validate Type
-                    if (baseType === 'INTEGER') {
-                        // Check if numeric and integer
-                        if (!/^-?\d+$/.test(String(inputVal).trim())) {
-                            throw new Error(`Invalid input for INTEGER variable '${displayId}'. Expected a whole number, got '${inputVal}'.`);
-                        }
-                        inputVal = parseInt(inputVal, 10);
-                    } else if (baseType === 'REAL') {
-                        if (isNaN(parseFloat(inputVal))) {
-                            throw new Error(`Invalid input for REAL variable '${displayId}'. Expected a number, got '${inputVal}'.`);
-                        }
-                        inputVal = parseFloat(inputVal);
-                    }
-
-                    if (isArray) {
-                        this.variables[varName][index] = inputVal;
-                    } else {
-                        this.variables[varName] = inputVal;
-                    }
-
-                    // Echo output if needed? 
-                    // Usually console echoes input. IDE might handle it, but for consistency:
-                    this.logOutput(`${inputVal}\n`);
-                }
+                target.set(inputVal);
+                this.logOutput(`${inputVal}\n`); // console-style echo
             } else {
-                // Just wait for enter
-                await this.requestInput();
+                await this.requestInput(); // bare readln — wait for Enter
             }
-        } else {
-            // Unknown procedure — throw a helpful error
-            const suggestion = PascalASTInterpreter.PROC_SUGGESTIONS[id];
-            const hint = suggestion ? ` Did you mean '${suggestion}'?` : ' Check your spelling.';
-            throw new Error(`Unknown procedure '${node.id}'.${hint}`);
+            return;
+        }
+
+        // ── Flow control statements ──────────────────────────────────────
+        if (id === 'BREAK') throw PascalASTInterpreter.FLOW.break();
+        if (id === 'CONTINUE') throw PascalASTInterpreter.FLOW.continue();
+        if (id === 'EXIT') throw PascalASTInterpreter.FLOW.exit();
+        if (id === 'HALT') throw PascalASTInterpreter.FLOW.halt();
+
+        // ── Mutating built-in procedures ─────────────────────────────────
+        if (id === 'INC' || id === 'DEC') {
+            const target = await this._resolveLValue(node.call_params[0]);
+            const delta = node.call_params[1] ? Number(await this.evaluate(node.call_params[1])) : 1;
+            target.set(Number(target.get()) + (id === 'INC' ? delta : -delta));
+            return;
+        }
+        if (id === 'DELETE' || id === 'INSERT' || id === 'STR' || id === 'VAL') {
+            await this._execStringProc(id, node.call_params || []);
+            return;
+        }
+
+        // ── User-declared procedure ──────────────────────────────────────
+        const decl = this.procDecls[id.toLowerCase()];
+        if (decl) {
+            if (decl.block === 'forward') throw new Error(`Procedure '${decl.id}' was declared forward but never implemented.`);
+            await this._callUserRoutine(decl, node.call_params || [], false);
+            return;
+        }
+
+        // Unknown procedure — throw a helpful error
+        const suggestion = PascalASTInterpreter.PROC_SUGGESTIONS[id];
+        const hint = suggestion ? ` Did you mean '${suggestion}'?` : ' Check your spelling.';
+        throw new Error(`Unknown procedure '${node.id}'.${hint}`);
+    }
+
+    async _execStringProc(id, params) {
+        if (id === 'DELETE') {
+            const target = await this._resolveLValue(params[0]);
+            const s = String(target.get());
+            const start = Number(await this.evaluate(params[1]));
+            const count = Number(await this.evaluate(params[2]));
+            target.set(s.slice(0, start - 1) + s.slice(start - 1 + count)); // 1-based
+            return;
+        }
+        if (id === 'INSERT') {
+            const sub = String(await this.evaluate(params[0]));
+            const target = await this._resolveLValue(params[1]);
+            const s = String(target.get());
+            const pos = Number(await this.evaluate(params[2]));
+            target.set(s.slice(0, pos - 1) + sub + s.slice(pos - 1)); // 1-based
+            return;
+        }
+        if (id === 'STR') {
+            const val = await this.evaluate(params[0]);
+            const target = await this._resolveLValue(params[1]);
+            target.set(String(val));
+            return;
+        }
+        if (id === 'VAL') {
+            const s = String(await this.evaluate(params[0])).trim();
+            const target = await this._resolveLValue(params[1]);
+            const codeTarget = params[2] ? await this._resolveLValue(params[2]) : null;
+            const num = /^-?\d+$/.test(s) ? parseInt(s, 10) : parseFloat(s);
+            if (Number.isNaN(num)) {
+                if (codeTarget) codeTarget.set(1);
+                else throw new Error(`val('${s}') failed — not a number.`);
+            } else {
+                target.set(num);
+                if (codeTarget) codeTarget.set(0);
+            }
         }
     }
 
@@ -461,10 +787,15 @@ export class PascalASTInterpreter {
     }
 
     async executeWhile(node) {
-        // Warning: Infinite Loop Protection needed?
         let steps = 0;
         while (await this.evaluate(node.expr)) {
-            await this.visit(node.stmt);
+            try {
+                await this.visit(node.stmt);
+            } catch (e) {
+                if (e?.__flow === 'break') break;
+                if (e?.__flow === 'continue') { /* next iteration */ }
+                else throw e;
+            }
             steps++;
             if (steps > 50000) throw new Error("Infinite Loop Execution Limit Exceeded");
         }
@@ -473,34 +804,42 @@ export class PascalASTInterpreter {
     async executeRepeat(node) {
         let steps = 0;
         do {
-            await this.visitStatements(node.stmts);
+            try {
+                await this.visitStatements(node.stmts);
+            } catch (e) {
+                if (e?.__flow === 'break') return;
+                if (e?.__flow !== 'continue') throw e;
+            }
             steps++;
             if (steps > 50000) throw new Error("Infinite Loop Execution Limit Exceeded");
-        } while (!(await this.evaluate(node.expr))); // UNTIL condition is true, loop stops. so loop WHILE NOT expr?
-        // Wait, AST says "stmt_repeat". UNTIL implies loop UNTIL true.
-        // So loop while False.
+        } while (!(await this.evaluate(node.expr)));
     }
 
     async executeFor(node) {
         const varName = (node.index.id || node.index).toLowerCase();
+        if (!this._hasVar(varName)) this._throwUndefined(node.index.id || String(node.index), varName);
         const start = await this.evaluate(node.start);
         const end = await this.evaluate(node.end);
         const step = node.by || 1; // 1 for TO, -1 for DOWNTO
 
-        this.variables[varName] = start;
-        let running = true;
+        this._setVar(varName, start);
         let steps = 0;
 
-        while (running) {
-            const current = this.variables[varName];
+        while (true) {
+            const current = this._getVar(varName);
 
             // Check termination
             if (step > 0 && current > end) break;
             if (step < 0 && current < end) break;
 
-            await this.visit(node.stmt);
+            try {
+                await this.visit(node.stmt);
+            } catch (e) {
+                if (e?.__flow === 'break') break;
+                if (e?.__flow !== 'continue') throw e;
+            }
 
-            this.variables[varName] += step;
+            this._setVar(varName, this._getVar(varName) + step);
             steps++;
             if (steps > 50000) throw new Error("Infinite Loop Execution Limit Exceeded");
         }
@@ -514,8 +853,18 @@ export class PascalASTInterpreter {
         if (node.cases) {
             for (const caseBranch of node.cases) {
                 for (const indexNode of caseBranch.indexes) {
+                    // `1..5:` range selector
+                    if (indexNode && indexNode.node === 'subrange') {
+                        const lo = await this.evaluate(indexNode.start);
+                        const hi = await this.evaluate(indexNode.end);
+                        if (exprVal >= lo && exprVal <= hi) {
+                            await this.visit(caseBranch.stmt);
+                            matchFound = true;
+                            break;
+                        }
+                        continue;
+                    }
                     const indexVal = await this.evaluate(indexNode);
-
                     if (indexVal == exprVal) {
                         await this.visit(caseBranch.stmt);
                         matchFound = true;
@@ -541,41 +890,54 @@ export class PascalASTInterpreter {
         if (!node) return null;
 
         switch (node.node) {
+            case 'constant': {
+                // 'a' label -> charCode; keep it a char for writeln/case matching
+                if (node.stype === 'CHARACTER') return String.fromCharCode(node.val);
+                // enum/id labels (e.g. `red:` in a case) match lowercase literal
+                if (node.stype === 'variable') return String(node.val).toLowerCase();
+                // val may itself be an expr node (e.g. negative bounds like -2)
+                if (node.val && typeof node.val === 'object') return this.evaluate(node.val);
+                return node.val;
+            }
             case 'integer':
             case 'real':
-            case 'boolean': // if supported
-            case 'constant': // Added support for constants (e.g. in case labels)
+            case 'boolean':
                 return node.val;
             case 'string':
                 return node.val;
+            case 'character':
+                // 'a' literal — parser stores the charCode; Pascal prints chars.
+                return String.fromCharCode(node.val);
+            case 'subrange':
+                return { lo: await this.evaluate(node.start), hi: await this.evaluate(node.end) };
             case 'expr_array_deref': {
-                const arrName = node.lvalue.id.toLowerCase();
-                if (!(arrName in this.variables)) {
-                    const suggestion = this._suggestVariable(arrName);
-                    const hint = suggestion ? ` Did you mean '${suggestion}'?` : ' Declare it in the var section.';
-                    throw new Error(`Undefined variable '${node.lvalue.id}'.${hint}`);
-                }
-                const idx = await this.evaluate(node.expr);
-                return this.variables[arrName][idx] || 0;
+                const container = await this._resolveLValue(node);
+                return container.get();
+            }
+            case 'expr_record_deref': {
+                const container = await this._resolveLValue(node);
+                return container.get();
             }
             case 'variable': {
                 const varKey = node.id.toLowerCase();
-                if (!(varKey in this.variables)) {
-                    const suggestion = this._suggestVariable(varKey);
-                    const hint = suggestion ? ` Did you mean '${suggestion}'?` : ' Declare it in the var section.';
-                    throw new Error(`Undefined variable '${node.id}'.${hint}`);
+                // Boolean literals
+                if (varKey === 'true') return true;
+                if (varKey === 'false') return false;
+                // Enum literals (e.g. `red` from `type Color = (red, green, blue)`)
+                if (this.enumLiterals.has(varKey)) return varKey;
+                if (!this._hasVar(varKey)) {
+                    this._throwUndefined(node.id, varKey);
                 }
-                return this.variables[varKey];
+                return this._getVar(varKey);
             }
 
-            case 'expr_call':
+            case 'expr_call': {
                 // Function call in expression
                 const funcName = node.id.toUpperCase();
+                const params = node.call_params || [];
                 const args = [];
-                if (node.call_params) {
-                    for (const p of node.call_params) {
-                        args.push(await this.evaluate(p));
-                    }
+                for (const p of params) {
+                    args.push(await this.evaluate(p));
                 }
 
                 if (funcName === '__FMT') {
@@ -604,25 +966,77 @@ export class PascalASTInterpreter {
                     }
                     return val;
                 }
-                // Other builtins
+
+                // Math
                 if (funcName === 'ROUND') return Math.round(args[0]);
                 if (funcName === 'TRUNC') return Math.trunc(args[0]);
+                if (funcName === 'INT') return Math.floor(args[0]);
+                if (funcName === 'FRAC') return args[0] - Math.trunc(args[0]);
                 if (funcName === 'ABS') return Math.abs(args[0]);
                 if (funcName === 'SQR') return args[0] * args[0];
                 if (funcName === 'SQRT') return Math.sqrt(args[0]);
+                if (funcName === 'ODD') return Math.abs(args[0] % 2) === 1;
+                if (funcName === 'RANDOM') {
+                    return args.length ? Math.floor(Math.random() * Number(args[0])) : Math.random();
+                }
 
-                return 0; // Unknown function
+                // Char / ordinal
+                if (funcName === 'CHR') return String.fromCharCode(Number(args[0]));
+                if (funcName === 'ORD') {
+                    const v = args[0];
+                    if (typeof v === 'string') return v.charCodeAt(0);
+                    if (typeof v === 'boolean') return v ? 1 : 0;
+                    if (this.enumLiterals.has(String(v).toLowerCase())) {
+                        // ordinal = position in enum declaration order
+                        let i = 0;
+                        for (const lit of this.enumLiterals) { if (lit === String(v).toLowerCase()) return i; i++; }
+                    }
+                    return Number(v);
+                }
+                if (funcName === 'PRED') return typeof args[0] === 'string' ? String.fromCharCode(args[0].charCodeAt(0) - 1) : args[0] - 1;
+                if (funcName === 'SUCC') return typeof args[0] === 'string' ? String.fromCharCode(args[0].charCodeAt(0) + 1) : args[0] + 1;
 
-            case 'expr_binop':
+                // Strings (1-based, Pascal semantics)
+                if (funcName === 'LENGTH') return String(args[0]).length;
+                if (funcName === 'UPCASE') return String(args[0]).toUpperCase();
+                if (funcName === 'LOWERCASE') return String(args[0]).toLowerCase();
+                if (funcName === 'CONCAT') return args.map(String).join('');
+                if (funcName === 'COPY') {
+                    const s = String(args[0]); const start = Number(args[1]); const count = Number(args[2]);
+                    return s.substr(start - 1, count);
+                }
+                if (funcName === 'POS') {
+                    const needle = String(args[0]); const hay = String(args[1]);
+                    const i = hay.indexOf(needle);
+                    return i === -1 ? 0 : i + 1;
+                }
+
+                // User-declared function
+                const fdecl = this.funcDecls[funcName.toLowerCase()];
+                if (fdecl) {
+                    if (fdecl.block === 'forward') throw new Error(`Function '${fdecl.id}' was declared forward but never implemented.`);
+                    return await this._callUserRoutine(fdecl, params, true);
+                }
+
+                throw new Error(`Unknown function '${node.id}'. Built-ins: round, trunc, int, frac, abs, sqr, sqrt, odd, random, chr, ord, pred, succ, length, upcase, concat, copy, pos.`);
+            }
+
+            case 'expr_binop': {
                 const left = await this.evaluate(node.left);
                 const right = await this.evaluate(node.right);
                 switch (node.op.toLowerCase()) {
                     case 'plus': return left + right; // Might concat strings too
                     case 'minus': return left - right;
                     case 'star': return left * right;
-                    case 'slash': return left / right;
-                    case 'div': return Math.floor(left / right);
-                    case 'mod': return left % right;
+                    case 'slash':
+                        if (right === 0) throw new Error('Division by zero');
+                        return left / right;
+                    case 'div':
+                        if (right === 0) throw new Error('Division by zero');
+                        return Math.trunc(left / right); // Pascal div truncates toward 0
+                    case 'mod':
+                        if (right === 0) throw new Error('Division by zero');
+                        return left % right;
                     case 'and': return left && right;
                     case 'or': return left || right;
                     case 'eq': return left == right; // loose equality
@@ -633,27 +1047,20 @@ export class PascalASTInterpreter {
                     case 'leq': return left <= right;
                 }
                 break;
-            case 'expr_unop':
+            }
+            case 'expr_unop': {
                 const expr = await this.evaluate(node.expr);
                 if (node.op === 'not') return !expr;
                 if (node.op === 'minus') return -expr;
                 break;
+            }
         }
         return 0; // Fallback
     }
 
     recordTrace(node) {
-        // Debounce: If we just recorded this line, maybe don't record again immediately for same node type?
-        // But loops need re-recording.
-        // We record everything. The game UI usually handles replay.
-
-        // Capture variables (shallow copy)
-        const currentVars = {};
-        for (const k in this.variables) {
-            if (Object.prototype.hasOwnProperty.call(this.variables, k)) {
-                currentVars[k] = this.variables[k];
-            }
-        }
+        // Capture variables across the scope chain (innermost wins)
+        const currentVars = this._allVars();
 
         this.traceSteps.push({
             lineIndex: node.lineno,
@@ -666,13 +1073,8 @@ export class PascalASTInterpreter {
     }
 
     recordError(error) {
-        // Capture variables
-        const currentVars = {};
-        for (const k in this.variables) {
-            if (Object.prototype.hasOwnProperty.call(this.variables, k)) {
-                currentVars[k] = this.variables[k];
-            }
-        }
+        // Capture variables across the scope chain
+        const currentVars = this._allVars();
 
         this.traceSteps.push({
             lineIndex: this.lastLineRecorded,

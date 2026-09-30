@@ -57,7 +57,9 @@ window.addEventListener('unhandledrejection',function(e){var r=e.reason;send('er
 document.addEventListener('submit',function(e){e.preventDefault();var f=e.target,parts=[];try{new FormData(f).forEach(function(v,k){parts.push(k+'='+(typeof v==='string'?v:'[file]'));});}catch(x){}send('info','Form submitted (not sent in preview): '+(parts.join(', ')||'(no named fields)'));});
 document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;if(!a)return;var h=a.getAttribute('href')||'';if(h.charAt(0)==='#'||/^javascript:/i.test(h))return;e.preventDefault();send('info','Link navigation is disabled in preview: '+h);});
 var loopStart=0;
-window.__cgLoop=function(){var now=Date.now();if(!loopStart){loopStart=now;setTimeout(function(){loopStart=0;},0);}else if(now-loopStart>${LOOP_TIME_LIMIT_MS}){throw new Error('Possible infinite loop: stopped a loop that ran for more than ${LOOP_TIME_LIMIT_MS / 1000} seconds');}};
+// Non-writable + non-configurable: student code cannot overwrite or delete the
+// guard (a plain window.__cgLoop = fn assignment would neutralize it otherwise).
+Object.defineProperty(window,'__cgLoop',{configurable:false,writable:false,value:function(){var now=Date.now();if(!loopStart){loopStart=now;setTimeout(function(){loopStart=0;},0);}else if(now-loopStart>${LOOP_TIME_LIMIT_MS}){throw new Error('Possible infinite loop: stopped a loop that ran for more than ${LOOP_TIME_LIMIT_MS / 1000} seconds');}}});
 ['alert','confirm','prompt'].forEach(function(name){var orig=window[name];if(!orig)return;window[name]=function(){try{return orig.apply(window,arguments);}finally{if(loopStart)loopStart=Date.now();}};});
 })();`.replace(/\n/g, '');
 
@@ -136,10 +138,56 @@ export function addLoopGuards(code) {
       if (code[j] === '{') {
         out += `${code.slice(i, j + 1)}__cgLoop();`;
         i = j + 1;
-        continue;
+      } else {
+        // Unbraced body: `while(1);`, `for(;;) x++;`, `do x(); while(1)` etc.
+        // Wrap the single statement in braces so the guard still runs each pass.
+        // The statement ends at the first `;` at paren/brace depth 0, or at EOF.
+        let k = j;
+        let pDepth = 0, bDepth = 0;
+        while (k < n) {
+          const ck = code[k], nk = code[k + 1];
+          if (ck === '/' && nk === '/') { const e = code.indexOf('\n', k); k = e === -1 ? n : e; continue; }
+          if (ck === '/' && nk === '*') { const e = code.indexOf('*/', k + 2); k = e === -1 ? n : e + 2; continue; }
+          if (ck === '"' || ck === "'" || ck === '`') { k = skipString(k); continue; }
+          if (ck === '(') pDepth += 1;
+          if (ck === ')') pDepth -= 1;
+          if (ck === '{') bDepth += 1;
+          if (ck === '}') bDepth -= 1;
+          if (ck === ';' && pDepth <= 0 && bDepth <= 0) { k += 1; break; }
+          k += 1;
+        }
+        const body = code.slice(j, k).trimEnd();
+        // Nothing after the keyword (e.g. `while` at EOF) — leave as-is.
+        if (!body) { out += code.slice(i, j); i = j; continue; }
+        out += `${code.slice(i, j)}{ __cgLoop(); ${body} }`;
+        i = k;
       }
-      out += code.slice(i, j);
-      i = j;
+
+      // For `do STMT while (expr)`, copy the trailing `while(...)` verbatim so it
+      // is not re-read as a new (unguarded) while loop.
+      if (keyword === 'do') {
+        while (i < n && /\s/.test(code[i])) { out += code[i]; i += 1; }
+        if (code.startsWith('while', i) && !/[\w$]/.test(code[i + 5] || '')) {
+          out += 'while';
+          i += 5;
+          while (i < n && /\s/.test(code[i])) { out += code[i]; i += 1; }
+          if (code[i] === '(') {
+            let p = 0;
+            while (i < n) {
+              if (code[i] === '"' || code[i] === "'" || code[i] === '`') {
+                const e = skipString(i);
+                out += code.slice(i, e);
+                i = e;
+                continue;
+              }
+              out += code[i];
+              if (code[i] === '(') p += 1;
+              if (code[i] === ')') { p -= 1; i += 1; if (p === 0) break; continue; }
+              i += 1;
+            }
+          }
+        }
+      }
       continue;
     }
 
@@ -151,7 +199,9 @@ export function addLoopGuards(code) {
 }
 
 const guardInlineScripts = (html) =>
-  html.replace(/(<script\b([^>]*)>)([\s\S]*?)(<\/script>)/gi, (match, open, attrs, body, close) => {
+  // `(<\/script>|$)`: an unclosed <script> still gets guarded (it runs to EOF anyway).
+  html.replace(/(<script\b([^>]*)>)([\s\S]*?)(<\/script>|$)/gi, (match, open, attrs, body, close) => {
+    if (!open) return match; // `$` alternative matched empty — nothing to do
     if (/\bsrc\s*=/i.test(attrs)) return match;
     const type = attrs.match(/\btype\s*=\s*["']?([^"'\s>]+)/i)?.[1]?.toLowerCase();
     if (type && !['text/javascript', 'module', 'application/javascript'].includes(type)) return match;

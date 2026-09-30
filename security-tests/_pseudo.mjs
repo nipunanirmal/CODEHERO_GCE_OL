@@ -1,4 +1,4 @@
-import { PascalASTInterpreter } from './PascalASTInterpreter';
+import { PascalASTInterpreter } from '../src/utils/PascalASTInterpreter.js';
 
 /**
  * Executes Pseudo Code / Pascal blocks using the unified AST Interpreter.

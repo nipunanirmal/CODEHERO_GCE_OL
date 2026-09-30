@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Play, RotateCcw, Trash2, Terminal, Code2, Save, SaveAll, Loader2, Sparkles, AlertTriangle } from 'lucide-react';
 import { explainError, getAIConfig } from '../../utils/aiErrorExplainer';
 import { PascalASTInterpreter } from '../../utils/PascalASTInterpreter';
@@ -48,7 +48,7 @@ export default function PascalIDE() {
         // 2. Regexes (Applied on escaped code)
         const keywordPattern = '\\b(program|var|begin|end|if|then|else|for|to|do|while|repeat|until|write|writeln|readln|integer|string|real|boolean|and|or|not|div|mod)\\b';
 
-        const combinedRegex = new RegExp(`('[^']* ')|(${keywordPattern})|(\\b\\d+\\b)`, 'gi');
+        const combinedRegex = new RegExp(`('[^']*')|(${keywordPattern})|(\\b\\d+\\b)`, 'gi');
 
         const html = safeCode.replace(combinedRegex, (match, str, kw, num) => {
             if (str) return `<span class="text-emerald-500">${match}</span>`;
